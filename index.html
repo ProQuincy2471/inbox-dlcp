@@ -192,7 +192,17 @@
   .who-when .ico { width: 13px; text-align: center; flex-shrink: 0; }
   .who-when .who-name { font-weight: 700; color: #1c1c1e; }
   .who-when .who-email { color: #8a8a86; font-size: 9.5px; }
-  .who-when .when { color: var(--c-TEC); font-weight: 700; }
+  .who-when .when-row { margin-top: 2px; }
+  .who-when .when-pill {
+    display: inline-flex; align-items: center; gap: 5px; background: #1c1c1e; color: #fff;
+    font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 2px; letter-spacing: 0.02em;
+  }
+  .who-when .when-pill .time { color: #ffd166; }
+
+  .card .date-badge {
+    font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em;
+    background: #1c1c1e; color: #fff; padding: 2px 7px; border-radius: 2px; margin-left: auto; white-space: nowrap;
+  }
 
   .card .desc { font-size: 11px; color: #444; margin-top: 7px; line-height: 1.42; border-top: 1px dashed #e2e2e2; padding-top: 7px; }
 
@@ -637,6 +647,7 @@ function renderBoard() {
               <div class="topline">
                 <span class="area-label area-${i.area}">${areaIcon[i.area]} ${i.area}</span>
                 ${i.attach ? '<span class="attach">📎</span>' : ''}
+                <span class="date-badge">${i.date}${i.time ? ' · ' + i.time : ''}</span>
               </div>
               <div class="subject">${i.subject}</div>
             </div>
@@ -644,7 +655,7 @@ function renderBoard() {
           <div class="who-when">
             <div class="line"><span class="ico">👤</span><span class="who-name">${i.senderName}</span></div>
             <div class="line"><span class="ico">✉️</span><span class="who-email mono">${i.senderEmail}</span></div>
-            <div class="line"><span class="ico">🗓️</span><span class="when">${i.date}</span></div>
+            <div class="line when-row"><span class="ico">🗓️</span><span class="when-pill">${i.date}${i.time ? `<span class="time">${i.time}</span>` : ''}</span></div>
           </div>
           <div class="desc">${i.summary}</div>
         `;
@@ -741,6 +752,7 @@ function renderCalDayList(iso) {
             <span class="area-label area-${i.area}">${areaIcon[i.area]} ${i.area}</span>
             <span class="num-badge" style="background:var(${meta[i.u].cssvar})">${meta[i.u].num}</span>
             ${i.attach ? '<span class="attach">📎</span>' : ''}
+            <span class="date-badge">${i.date}${i.time ? ' · ' + i.time : ''}</span>
           </div>
           <div class="subject">${i.subject}</div>
         </div>
@@ -748,6 +760,7 @@ function renderCalDayList(iso) {
       <div class="who-when">
         <div class="line"><span class="ico">👤</span><span class="who-name">${i.senderName}</span></div>
         <div class="line"><span class="ico">✉️</span><span class="who-email mono">${i.senderEmail}</span></div>
+        <div class="line when-row"><span class="ico">🗓️</span><span class="when-pill">${i.date}${i.time ? `<span class="time">${i.time}</span>` : ''}</span></div>
       </div>
       <div class="desc">${i.summary}</div>
     `;
@@ -861,7 +874,7 @@ function openModal(i) {
       <div class="modal-who-when">
         <div class="line"><span class="ico">👤</span><b>${i.senderName}</b></div>
         <div class="line"><span class="ico">✉️</span><span class="mono">${i.senderEmail}</span></div>
-        <div class="line"><span class="ico">🗓️</span>${i.date}</div>
+        <div class="line"><span class="ico">🗓️</span><span style="display:inline-flex;align-items:center;gap:6px;background:#1c1c1e;color:#fff;font-weight:800;font-size:12px;padding:3px 9px;border-radius:2px;">${i.date}${i.time ? `<span style="color:#ffd166;">${i.time}</span>` : ''}</span></div>
         ${i.futureLabel ? `<div class="line"><span class="ico">📅</span><span style="color:#b85c1a;font-weight:700;">${i.futureLabel}</span></div>` : ''}
       </div>
       <div class="modal-section-label">Resumen</div>
