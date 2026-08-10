@@ -235,6 +235,53 @@
   .cal-daylist-sub { color: #8a8a86; font-size: 11px; margin-bottom: 14px; }
   .cal-daylist { display: flex; flex-direction: column; gap: 8px; }
 
+  /* ---- vista de lista (correo por correo) ---- */
+  .listwrap { padding: 22px 40px 44px; display: flex; flex-direction: column; gap: 8px; }
+  .listbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .listbar .lcount { color: #8a8a86; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .listrow {
+    background: #fff; border: 2px solid #2a2a2a; border-left: 7px solid #999;
+    padding: 10px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+    transition: box-shadow .12s ease;
+  }
+  .listrow:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.28); }
+  .listrow.border-INCMNSZ { border-left-color: var(--c-INCMNSZ); }
+  .listrow.border-TEC { border-left-color: var(--c-TEC); }
+  .listrow.border-Agenda { border-left-color: var(--c-Agenda); }
+  .listrow.border-Personal { border-left-color: var(--c-Personal); }
+  .listrow.border-Otros { border-left-color: var(--c-Otros); }
+  .listrow.checked { opacity: 0.45; }
+  .listrow.checked .listrow-subject { text-decoration: line-through; }
+  .listrow .lchk { width: 20px; height: 20px; flex-shrink: 0; cursor: pointer; accent-color: var(--c-urgente); }
+  .listrow .ldate {
+    flex-shrink: 0; width: 92px; font-size: 10px; font-weight: 800; text-transform: uppercase;
+    background: #1c1c1e; color: #fff; padding: 4px 6px; border-radius: 2px; text-align: center; line-height: 1.3;
+  }
+  .listrow .ldate .ltime { display: block; color: #ffd166; font-size: 9px; margin-top: 1px; }
+  .listrow .lavatar {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 9.5px; font-weight: 800; color: #fff;
+  }
+  .listrow .lavatar.area-INCMNSZ { background: var(--c-INCMNSZ); }
+  .listrow .lavatar.area-TEC { background: var(--c-TEC); }
+  .listrow .lavatar.area-Agenda { background: var(--c-Agenda); }
+  .listrow .lavatar.area-Personal { background: var(--c-Personal); }
+  .listrow .lavatar.area-Otros { background: var(--c-Otros); }
+  .listrow .lbody { flex: 1; min-width: 0; }
+  .listrow .ltop { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .listrow .larea, .listrow .lu {
+    font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 800; color: #fff;
+    padding: 2px 5px; border-radius: 2px;
+  }
+  .listrow .larea.area-INCMNSZ { background: var(--c-INCMNSZ); }
+  .listrow .larea.area-TEC { background: var(--c-TEC); }
+  .listrow .larea.area-Agenda { background: var(--c-Agenda); }
+  .listrow .larea.area-Personal { background: var(--c-Personal); }
+  .listrow .larea.area-Otros { background: var(--c-Otros); }
+  .listrow .lfrom { font-size: 10.5px; color: #6b6b70; }
+  .listrow .listrow-subject { font-size: 12.5px; font-weight: 800; color: #1c1c1e; margin-top: 2px; }
+  .listrow .lattach { font-size: 11px; flex-shrink: 0; }
+
   /* ---- modal preview ---- */
   .overlay {
     position: fixed; inset: 0; background: rgba(10,10,10,0.6);
@@ -316,6 +363,7 @@
     .board.show-resuelto { grid-template-columns: 1fr; }
     .col-head { position: static; }
     .calwrap { grid-template-columns: 1fr; }
+    .listrow { flex-wrap: wrap; }
   }
 </style>
 </head>
@@ -375,6 +423,7 @@
     <div class="toolbar">
       <div class="viewSwitch">
         <div class="v active" data-view="kanban">📋 Kanban</div>
+        <div class="v" data-view="list">📧 Lista</div>
         <div class="v" data-view="calendar">📆 Calendario</div>
       </div>
       <input class="search" id="searchBox" type="text" placeholder="Buscar remitente o palabra clave…">
@@ -398,6 +447,13 @@
 </div>
 
 <div class="board" id="board"></div>
+
+<div class="listwrap" id="listwrap" style="display:none">
+  <div class="listbar">
+    <div class="lcount mono" id="listCount">0 correos</div>
+  </div>
+  <div id="listRows"></div>
+</div>
 
 <div class="calwrap" id="calwrap" style="display:none">
   <div class="calbox">
@@ -498,6 +554,7 @@ const DOW = ["L","M","M","J","V","S","D"];
 
 const STORAGE_KEY = "inbox-triage-overrides-v1";
 const COLOR_KEY = "inbox-triage-colors-v1";
+const CHECKED_KEY = "inbox-triage-checked-v1";
 
 function loadOverrides() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch(e) { return {}; }
@@ -508,9 +565,18 @@ function saveOverride(id, u) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(o));
 }
 
+function loadChecked() {
+  try { return JSON.parse(localStorage.getItem(CHECKED_KEY) || "{}"); } catch(e) { return {}; }
+}
+function setChecked(id, val) {
+  const c = loadChecked();
+  if (val) c[id] = true; else delete c[id];
+  localStorage.setItem(CHECKED_KEY, JSON.stringify(c));
+}
+
 function getItems() {
   const overrides = loadOverrides();
-  return RAW_ITEMS.map(i => ({...i, u: overrides[i.id] || i.u}));
+  return RAW_ITEMS.map((i, idx) => ({...i, u: overrides[i.id || ('_idx' + idx)] || i.u, _key: i.id || ('_idx' + idx)}));
 }
 
 function initials(name) {
@@ -631,10 +697,10 @@ function renderBoard() {
         const c = document.createElement('div');
         c.className = 'card border-' + i.area;
         c.draggable = true;
-        c.dataset.id = i.id;
+        c.dataset.id = i._key;
         let movedDuringDrag = false;
         c.addEventListener('dragstart', e => {
-          e.dataTransfer.setData('text/plain', i.id);
+          e.dataTransfer.setData('text/plain', i._key);
           c.classList.add('dragging');
           movedDuringDrag = true;
         });
@@ -663,6 +729,65 @@ function renderBoard() {
     }
     col.appendChild(zone);
     board.appendChild(col);
+  });
+}
+
+/* ---- vista de lista (correo por correo, más reciente arriba) ---- */
+function sortKeyOf(i) {
+  return (i.sortDate || '0000-00-00') + 'T' + (i.time ? to24h(i.time) : '00:00');
+}
+function to24h(t) {
+  const m = t.match(/(\d{1,2}):(\d{2})\s*([ap])\.?m\.?/i);
+  if (!m) return '00:00';
+  let h = parseInt(m[1], 10);
+  const min = m[2];
+  const isPM = m[3].toLowerCase() === 'p';
+  if (isPM && h !== 12) h += 12;
+  if (!isPM && h === 12) h = 0;
+  return String(h).padStart(2, '0') + ':' + min;
+}
+
+function renderList() {
+  const allItems = getItems();
+  const items = allItems.filter(matches).sort((a, b) => sortKeyOf(b).localeCompare(sortKeyOf(a)));
+  const checked = loadChecked();
+  const rowsEl = document.getElementById('listRows');
+  const checkedCount = items.filter(i => checked[i._key]).length;
+  document.getElementById('listCount').textContent = items.length + ' correo(s) · ' + checkedCount + ' marcado(s) como revisado';
+  rowsEl.innerHTML = '';
+  if (items.length === 0) {
+    rowsEl.innerHTML = '<div class="empty">— sin correos para este filtro —</div>';
+    return;
+  }
+  items.forEach(i => {
+    const isChecked = !!checked[i._key];
+    const row = document.createElement('div');
+    row.className = 'listrow border-' + i.area + (isChecked ? ' checked' : '');
+    row.innerHTML = `
+      <input type="checkbox" class="lchk" ${isChecked ? 'checked' : ''}>
+      <div class="ldate">${i.date}${i.time ? `<span class="ltime">${i.time}</span>` : ''}</div>
+      <div class="lavatar area-${i.area}">${initials(i.senderName)}</div>
+      <div class="lbody">
+        <div class="ltop">
+          <span class="larea area-${i.area}">${areaIcon[i.area]} ${i.area}</span>
+          <span class="lu" style="background:var(${meta[i.u].cssvar})">${meta[i.u].label}</span>
+          <span class="lfrom">${i.senderName}</span>
+        </div>
+        <div class="listrow-subject">${i.subject}</div>
+      </div>
+      ${i.attach ? '<span class="lattach">📎</span>' : ''}
+    `;
+    const chk = row.querySelector('.lchk');
+    chk.addEventListener('click', e => e.stopPropagation());
+    chk.addEventListener('change', () => {
+      setChecked(i._key, chk.checked);
+      row.classList.toggle('checked', chk.checked);
+      const c = loadChecked();
+      const cc = items.filter(x => c[x._key]).length;
+      document.getElementById('listCount').textContent = items.length + ' correo(s) · ' + cc + ' marcado(s) como revisado';
+    });
+    row.addEventListener('click', () => openModal(i));
+    rowsEl.appendChild(row);
   });
 }
 
@@ -827,13 +952,16 @@ function renderTabs() {
 }
 
 function refresh() {
-  if (currentView === 'kanban') { renderBoard(); } else { renderCalendar(); }
+  if (currentView === 'kanban') { renderBoard(); }
+  else if (currentView === 'list') { renderList(); }
+  else { renderCalendar(); }
 }
 
 function switchView(view) {
   currentView = view;
   document.querySelectorAll('.viewSwitch .v').forEach(x => x.classList.toggle('active', x.dataset.view === view));
   document.getElementById('board').style.display = view === 'kanban' ? 'grid' : 'none';
+  document.getElementById('listwrap').style.display = view === 'list' ? 'flex' : 'none';
   document.getElementById('calwrap').style.display = view === 'calendar' ? 'grid' : 'none';
   refresh();
 }
@@ -892,7 +1020,7 @@ function openModal(i) {
   document.getElementById('modalCloseBtn').onclick = closeModal;
   document.getElementById('modalCloseBtn2').onclick = closeModal;
   document.getElementById('modalResolveBtn').onclick = () => {
-    saveOverride(i.id, 'resuelto');
+    saveOverride(i._key, 'resuelto');
     closeModal();
     renderSummary();
     refresh();
