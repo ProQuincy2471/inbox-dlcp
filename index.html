@@ -14,13 +14,13 @@
     color-scheme: light;
     --c-urgente: #d7263d;
     --c-revisar: #f2a900;
-    --c-ruido: #94a3b8;
+    --c-ruido: #cbd5e1;
     --c-resuelto: #12a578;
-    --c-INCMNSZ: #2f6fed;
-    --c-TEC: #e0821f;
-    --c-Agenda: #9b6df0;
-    --c-Personal: #14b8a6;
-    --c-Otros: #78716c;
+    --c-INCMNSZ: #3b82f6;
+    --c-TEC: #fb923c;
+    --c-Agenda: #c084fc;
+    --c-Personal: #2dd4bf;
+    --c-Otros: #f472b6;
   }
   * { box-sizing: border-box; }
   body {
@@ -152,11 +152,11 @@
   }
   .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.32); transform: translateY(-1px); }
   .card.dragging { opacity: 0.4; }
-  .card.border-INCMNSZ { border-left-color: var(--c-INCMNSZ); }
-  .card.border-TEC { border-left-color: var(--c-TEC); }
-  .card.border-Agenda { border-left-color: var(--c-Agenda); }
-  .card.border-Personal { border-left-color: var(--c-Personal); }
-  .card.border-Otros { border-left-color: var(--c-Otros); }
+  .card.border-INCMNSZ { border-left-color: var(--c-INCMNSZ); box-shadow: -6px 0 14px -8px color-mix(in srgb, var(--c-INCMNSZ) 70%, transparent); }
+  .card.border-TEC { border-left-color: var(--c-TEC); box-shadow: -6px 0 14px -8px color-mix(in srgb, var(--c-TEC) 70%, transparent); }
+  .card.border-Agenda { border-left-color: var(--c-Agenda); box-shadow: -6px 0 14px -8px color-mix(in srgb, var(--c-Agenda) 70%, transparent); }
+  .card.border-Personal { border-left-color: var(--c-Personal); box-shadow: -6px 0 14px -8px color-mix(in srgb, var(--c-Personal) 70%, transparent); }
+  .card.border-Otros { border-left-color: var(--c-Otros); box-shadow: -6px 0 14px -8px color-mix(in srgb, var(--c-Otros) 70%, transparent); }
 
   .card-top { display: flex; align-items: flex-start; gap: 8px; }
   .avatar {
@@ -164,11 +164,11 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 10.5px; font-weight: 800; color: #fff;
   }
-  .avatar.area-INCMNSZ { background: var(--c-INCMNSZ); }
-  .avatar.area-TEC { background: var(--c-TEC); }
-  .avatar.area-Agenda { background: var(--c-Agenda); }
-  .avatar.area-Personal { background: var(--c-Personal); }
-  .avatar.area-Otros { background: var(--c-Otros); }
+  .avatar.area-INCMNSZ { background: var(--c-INCMNSZ); box-shadow: 0 0 10px color-mix(in srgb, var(--c-INCMNSZ) 65%, transparent); }
+  .avatar.area-TEC { background: var(--c-TEC); box-shadow: 0 0 10px color-mix(in srgb, var(--c-TEC) 65%, transparent); }
+  .avatar.area-Agenda { background: var(--c-Agenda); box-shadow: 0 0 10px color-mix(in srgb, var(--c-Agenda) 65%, transparent); }
+  .avatar.area-Personal { background: var(--c-Personal); box-shadow: 0 0 10px color-mix(in srgb, var(--c-Personal) 65%, transparent); }
+  .avatar.area-Otros { background: var(--c-Otros); box-shadow: 0 0 10px color-mix(in srgb, var(--c-Otros) 65%, transparent); }
 
   .card-head-text { flex: 1; min-width: 0; }
   .card .topline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -176,11 +176,11 @@
     font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; color: #fff;
     padding: 2px 6px; border-radius: 2px;
   }
-  .area-label.area-INCMNSZ { background: var(--c-INCMNSZ); }
-  .area-label.area-TEC { background: var(--c-TEC); }
-  .area-label.area-Agenda { background: var(--c-Agenda); }
-  .area-label.area-Personal { background: var(--c-Personal); }
-  .area-label.area-Otros { background: var(--c-Otros); }
+  .area-label.area-INCMNSZ { background: var(--c-INCMNSZ); box-shadow: 0 0 8px color-mix(in srgb, var(--c-INCMNSZ) 55%, transparent); }
+  .area-label.area-TEC { background: var(--c-TEC); box-shadow: 0 0 8px color-mix(in srgb, var(--c-TEC) 55%, transparent); }
+  .area-label.area-Agenda { background: var(--c-Agenda); box-shadow: 0 0 8px color-mix(in srgb, var(--c-Agenda) 55%, transparent); }
+  .area-label.area-Personal { background: var(--c-Personal); box-shadow: 0 0 8px color-mix(in srgb, var(--c-Personal) 55%, transparent); }
+  .area-label.area-Otros { background: var(--c-Otros); box-shadow: 0 0 8px color-mix(in srgb, var(--c-Otros) 55%, transparent); }
   .card .attach { font-size: 9.5px; }
   .card .subject { font-size: 12.8px; font-weight: 800; color: #1c1c1e; margin-top: 5px; line-height: 1.28; }
 
@@ -245,11 +245,11 @@
     transition: box-shadow .12s ease;
   }
   .listrow:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.28); }
-  .listrow.border-INCMNSZ { border-left-color: var(--c-INCMNSZ); }
-  .listrow.border-TEC { border-left-color: var(--c-TEC); }
-  .listrow.border-Agenda { border-left-color: var(--c-Agenda); }
-  .listrow.border-Personal { border-left-color: var(--c-Personal); }
-  .listrow.border-Otros { border-left-color: var(--c-Otros); }
+  .listrow.border-INCMNSZ { border-left-color: var(--c-INCMNSZ); box-shadow: -6px 0 14px -8px color-mix(in srgb, var(--c-INCMNSZ) 70%, transparent); }
+  .listrow.border-TEC { border-left-color: var(--c-TEC); box-shadow: -6px 0 14px -8px color-mix(in srgb, var(--c-TEC) 70%, transparent); }
+  .listrow.border-Agenda { border-left-color: var(--c-Agenda); box-shadow: -6px 0 14px -8px color-mix(in srgb, var(--c-Agenda) 70%, transparent); }
+  .listrow.border-Personal { border-left-color: var(--c-Personal); box-shadow: -6px 0 14px -8px color-mix(in srgb, var(--c-Personal) 70%, transparent); }
+  .listrow.border-Otros { border-left-color: var(--c-Otros); box-shadow: -6px 0 14px -8px color-mix(in srgb, var(--c-Otros) 70%, transparent); }
   .listrow.checked { opacity: 0.45; }
   .listrow.checked .listrow-subject { text-decoration: line-through; }
   .listrow .lchk { width: 20px; height: 20px; flex-shrink: 0; cursor: pointer; accent-color: var(--c-urgente); }
@@ -262,22 +262,22 @@
     width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     font-size: 9.5px; font-weight: 800; color: #fff;
   }
-  .listrow .lavatar.area-INCMNSZ { background: var(--c-INCMNSZ); }
-  .listrow .lavatar.area-TEC { background: var(--c-TEC); }
-  .listrow .lavatar.area-Agenda { background: var(--c-Agenda); }
-  .listrow .lavatar.area-Personal { background: var(--c-Personal); }
-  .listrow .lavatar.area-Otros { background: var(--c-Otros); }
+  .listrow .lavatar.area-INCMNSZ { background: var(--c-INCMNSZ); box-shadow: 0 0 10px color-mix(in srgb, var(--c-INCMNSZ) 65%, transparent); }
+  .listrow .lavatar.area-TEC { background: var(--c-TEC); box-shadow: 0 0 10px color-mix(in srgb, var(--c-TEC) 65%, transparent); }
+  .listrow .lavatar.area-Agenda { background: var(--c-Agenda); box-shadow: 0 0 10px color-mix(in srgb, var(--c-Agenda) 65%, transparent); }
+  .listrow .lavatar.area-Personal { background: var(--c-Personal); box-shadow: 0 0 10px color-mix(in srgb, var(--c-Personal) 65%, transparent); }
+  .listrow .lavatar.area-Otros { background: var(--c-Otros); box-shadow: 0 0 10px color-mix(in srgb, var(--c-Otros) 65%, transparent); }
   .listrow .lbody { flex: 1; min-width: 0; }
   .listrow .ltop { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .listrow .larea, .listrow .lu {
     font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 800; color: #fff;
     padding: 2px 5px; border-radius: 2px;
   }
-  .listrow .larea.area-INCMNSZ { background: var(--c-INCMNSZ); }
-  .listrow .larea.area-TEC { background: var(--c-TEC); }
-  .listrow .larea.area-Agenda { background: var(--c-Agenda); }
-  .listrow .larea.area-Personal { background: var(--c-Personal); }
-  .listrow .larea.area-Otros { background: var(--c-Otros); }
+  .listrow .larea.area-INCMNSZ { background: var(--c-INCMNSZ); box-shadow: 0 0 8px color-mix(in srgb, var(--c-INCMNSZ) 55%, transparent); }
+  .listrow .larea.area-TEC { background: var(--c-TEC); box-shadow: 0 0 8px color-mix(in srgb, var(--c-TEC) 55%, transparent); }
+  .listrow .larea.area-Agenda { background: var(--c-Agenda); box-shadow: 0 0 8px color-mix(in srgb, var(--c-Agenda) 55%, transparent); }
+  .listrow .larea.area-Personal { background: var(--c-Personal); box-shadow: 0 0 8px color-mix(in srgb, var(--c-Personal) 55%, transparent); }
+  .listrow .larea.area-Otros { background: var(--c-Otros); box-shadow: 0 0 8px color-mix(in srgb, var(--c-Otros) 55%, transparent); }
   .listrow .lfrom { font-size: 10.5px; color: #6b6b70; }
   .listrow .listrow-subject { font-size: 12.5px; font-weight: 800; color: #1c1c1e; margin-top: 2px; }
   .listrow .lattach { font-size: 11px; flex-shrink: 0; }
@@ -435,13 +435,13 @@
     <h4>Personalizar colores</h4>
     <div class="colorrow"><label>🔴 Urgente</label><input type="color" data-var="--c-urgente" value="#d7263d"></div>
     <div class="colorrow"><label>🟡 Vale la pena revisar</label><input type="color" data-var="--c-revisar" value="#f2a900"></div>
-    <div class="colorrow"><label>⚪ Ruido</label><input type="color" data-var="--c-ruido" value="#5b6472"></div>
+    <div class="colorrow"><label>⚪ Ruido</label><input type="color" data-var="--c-ruido" value="#cbd5e1"></div>
     <div class="colorrow"><label>✅ Resuelto</label><input type="color" data-var="--c-resuelto" value="#12a578"></div>
-    <div class="colorrow"><label>🏥 INCMNSZ</label><input type="color" data-var="--c-INCMNSZ" value="#2360c9"></div>
-    <div class="colorrow"><label>🎓 TEC</label><input type="color" data-var="--c-TEC" value="#b85c1a"></div>
-    <div class="colorrow"><label>📅 Agenda</label><input type="color" data-var="--c-Agenda" value="#6b3fc9"></div>
-    <div class="colorrow"><label>👤 Personal</label><input type="color" data-var="--c-Personal" value="#1f8a4c"></div>
-    <div class="colorrow"><label>📦 Otros</label><input type="color" data-var="--c-Otros" value="#55555a"></div>
+    <div class="colorrow"><label>🏥 INCMNSZ</label><input type="color" data-var="--c-INCMNSZ" value="#3b82f6"></div>
+    <div class="colorrow"><label>🎓 TEC</label><input type="color" data-var="--c-TEC" value="#fb923c"></div>
+    <div class="colorrow"><label>📅 Agenda</label><input type="color" data-var="--c-Agenda" value="#c084fc"></div>
+    <div class="colorrow"><label>👤 Personal</label><input type="color" data-var="--c-Personal" value="#2dd4bf"></div>
+    <div class="colorrow"><label>📦 Otros</label><input type="color" data-var="--c-Otros" value="#f472b6"></div>
     <div class="resetbtn" id="resetColors">Restablecer colores</div>
   </div>
 </div>
