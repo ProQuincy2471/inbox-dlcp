@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Inbox Triage",
+  "schemaVersion": 1,
+  "description": "Triage de bandeja de Diego: clasifica los correos por urgencia (Urgente / Vale la pena revisar / Ruido) y área (INCMNSZ, TEC, Agenda, Personal, Otros) basado en el contenido de cada correo, sin generar borradores de respuesta. Se actualiza dos veces al día (8am/8pm) desde Gmail."
+}
+</script>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    color-scheme: light;
+    --c-urgente: #d7263d;
+    --c-revisar: #f2a900;
+    --c-ruido: #5b6472;
+    --c-resuelto: #12a578;
+    --c-INCMNSZ: #2360c9;
+    --c-TEC: #b85c1a;
+    --c-Agenda: #6b3fc9;
+    --c-Personal: #1f8a4c;
+    --c-Otros: #55555a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    background: #171717;
+    color: #1c1c1e;
+  }
+  .mono { font-family: "SFMono-Regular", Menlo, Consolas, "Courier New", monospace; letter-spacing: 0.04em; }
+
+  .rail { height: 7px; background: linear-gradient(90deg, var(--c-urgente), var(--c-revisar), var(--c-ruido), #171717); position: sticky; top: 0; z-index: 30; }
+
+  /* ---- hero ---- */
+  .hero { background: #fbeee4; padding: 26px 40px 18px; }
+  .hero-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; }
+  .wordmark { font-weight: 900; font-size: 27px; letter-spacing: -0.02em; color: #1c1c1e; text-transform: uppercase; }
+  .wordmark span { color: var(--c-urgente); }
+  .hero-sub { margin-top: 4px; font-size: 11.5px; color: #7a7a76; }
+  .hero-card { display: flex; border: 2px solid #1c1c1e; background: #fff; min-width: 240px; }
+  .hero-card .swatch { width: 60px; background: var(--c-urgente); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .hero-card .info { padding: 10px 14px; }
+  .hero-card .info .title { font-weight: 800; font-size: 13.5px; text-transform: uppercase; }
+  .hero-card .info .code { font-size: 9.5px; color: #9a9a96; margin-top: 2px; }
+  .hero-card .info .updated { font-size: 9.5px; color: #b5b5b0; margin-top: 5px; }
+
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: #d8c4b6; margin-top: 15px; }
+  .summary .cell { background: #fbeee4; padding: 11px 16px; position: relative; overflow: hidden; }
+  .summary .cell .n { font-size: 26px; font-weight: 900; }
+  .summary .cell .l { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #7a7a76; margin-top: 2px; }
+  .summary .cell.urgente .n { color: var(--c-urgente); }
+  .summary .cell.revisar .n { color: var(--c-revisar); }
+  .summary .cell.ruido .n { color: var(--c-ruido); }
+  .summary .cell.resuelto .n { color: var(--c-resuelto); }
+  .summary .cell .bar { position: absolute; bottom: 0; left: 0; height: 4px; }
+  .summary .cell.urgente .bar { background: var(--c-urgente); }
+  .summary .cell.revisar .bar { background: var(--c-revisar); }
+  .summary .cell.ruido .bar { background: var(--c-ruido); }
+  .summary .cell.resuelto .bar { background: var(--c-resuelto); }
+
+  /* ---- próximas fechas strip ---- */
+  .upcoming { background: #fbeee4; padding: 4px 40px 22px; }
+  .upcoming-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: #9a8a7c; margin-bottom: 8px; }
+  .upcoming-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .date-chip {
+    background: #1c1c1e; color: #fff; min-width: 130px; flex-shrink: 0;
+    display: flex; align-items: stretch; border: 2px solid #1c1c1e;
+  }
+  .date-chip .daybox {
+    background: var(--c-urgente); padding: 8px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 46px;
+  }
+  .date-chip .daybox .d { font-size: 18px; font-weight: 900; line-height: 1; }
+  .date-chip .daybox .m { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+  .date-chip .body { padding: 7px 10px; }
+  .date-chip .body .t { font-size: 10.5px; font-weight: 700; line-height: 1.25; }
+  .date-chip .body .s { font-size: 9px; color: #b0b0ac; margin-top: 3px; }
+  .upcoming-empty { font-size: 11px; color: #9a8a7c; font-style: italic; }
+
+  /* ---- controls ---- */
+  .controls { background: #fbeee4; padding: 14px 40px 18px; border-bottom: 1px dashed #d8c4b6; position: sticky; top: 7px; z-index: 20; }
+  .controls-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .controls-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: #9a8a7c; margin-bottom: 8px; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab { border: 2px solid #1c1c1e; background: #fff; padding: 6px 12px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; user-select: none; font-weight: 800; display: flex; align-items: center; gap: 5px; }
+  .tab.active { background: #1c1c1e; color: #fff; }
+  .tab .icon { font-size: 12px; }
+
+  .viewSwitch { display: flex; gap: 0; border: 2px solid #1c1c1e; }
+  .viewSwitch .v { padding: 7px 14px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; cursor: pointer; background: #fff; }
+  .viewSwitch .v.active { background: #1c1c1e; color: #fff; }
+  .viewSwitch .v:not(:last-child) { border-right: 2px solid #1c1c1e; }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .search {
+    border: 2px solid #1c1c1e; background: #fff; padding: 6px 11px; font-size: 11.5px;
+    min-width: 190px; outline: none;
+  }
+  .search::placeholder { color: #b5aca4; }
+  .toggle {
+    border: 2px solid #1c1c1e; background: #fff; padding: 6px 11px; font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.03em; font-weight: 800; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .toggle.active { background: var(--c-urgente); color: #fff; border-color: var(--c-urgente); }
+
+  /* ---- color customizer ---- */
+  .colorbtn { border: 2px solid #1c1c1e; background: #fff; padding: 6px 11px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; cursor: pointer; }
+  .colorpanel {
+    display: none; position: absolute; right: 40px; margin-top: 8px; background: #fff; border: 2px solid #1c1c1e;
+    padding: 14px; z-index: 40; width: 260px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+  .colorpanel.open { display: block; }
+  .colorpanel h4 { margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .colorrow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+  .colorrow label { font-size: 11px; color: #444; }
+  .colorrow input[type=color] { width: 34px; height: 24px; border: 1px solid #ccc; padding: 0; cursor: pointer; }
+  .colorpanel .resetbtn { margin-top: 8px; width: 100%; padding: 7px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; border: 1px solid #1c1c1e; background: #f5f5f5; cursor: pointer; }
+
+  /* ---- kanban ---- */
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 22px 40px 44px; align-items: start; }
+  .board.show-resuelto { grid-template-columns: repeat(4, 1fr); }
+  .col { background: #202020; border: 2px solid #2c2c2c; min-height: 160px; }
+  .col-head { padding: 13px 14px 8px; position: sticky; top: 100px; background: #202020; z-index: 10; }
+  .col-head-row { display: flex; align-items: center; gap: 9px; }
+  .num-badge { font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 800; color: #fff; padding: 3px 8px; border-radius: 2px; }
+  .col.urgente .num-badge { background: var(--c-urgente); }
+  .col.revisar .num-badge { background: var(--c-revisar); }
+  .col.ruido .num-badge { background: var(--c-ruido); }
+  .col.resuelto .num-badge { background: var(--c-resuelto); }
+  .col-title { font-size: 14.5px; font-weight: 900; color: #fff; text-transform: uppercase; }
+  .col-count { font-size: 10.5px; color: #8a8a86; margin-left: auto; }
+  .col-desc { font-size: 10.5px; color: #8a8a86; padding: 4px 0 0; line-height: 1.4; }
+  .col-progress { height: 4px; background: #333; margin-top: 10px; }
+  .col.urgente .col-progress-fill { background: var(--c-urgente); }
+  .col.revisar .col-progress-fill { background: var(--c-revisar); }
+  .col.ruido .col-progress-fill { background: var(--c-ruido); }
+  .col.resuelto .col-progress-fill { background: var(--c-resuelto); }
+  .col-progress-fill { height: 100%; }
+
+  .dropzone { padding: 8px 10px 14px; min-height: 80px; display: flex; flex-direction: column; gap: 9px; }
+  .dropzone.dragover { background: rgba(232,85,47,0.1); outline: 2px dashed var(--c-urgente); outline-offset: -4px; }
+
+  .card {
+    background: #fff;
+    border: 2px solid #2a2a2a;
+    border-left: 7px solid #999;
+    padding: 11px 12px 10px;
+    cursor: grab;
+    transition: box-shadow .12s ease, transform .12s ease;
+  }
+  .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.32); transform: translateY(-1px); }
+  .card.dragging { opacity: 0.4; }
+  .card.border-INCMNSZ { border-left-color: var(--c-INCMNSZ); }
+  .card.border-TEC { border-left-color: var(--c-TEC); }
+  .card.border-Agenda { border-left-color: var(--c-Agenda); }
+  .card.border-Personal { border-left-color: var(--c-Personal); }
+  .card.border-Otros { border-left-color: var(--c-Otros); }
+
+  .card-top { display: flex; align-items: flex-start; gap: 8px; }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10.5px; font-weight: 800; color: #fff;
+  }
+  .avatar.area-INCMNSZ { background: var(--c-INCMNSZ); }
+  .avatar.area-TEC { background: var(--c-TEC); }
+  .avatar.area-Agenda { background: var(--c-Agenda); }
+  .avatar.area-Personal { background: var(--c-Personal); }
+  .avatar.area-Otros { background: var(--c-Otros); }
+
+  .card-head-text { flex: 1; min-width: 0; }
+  .card .topline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .card .area-label {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; color: #fff;
+    padding: 2px 6px; border-radius: 2px;
+  }
+  .area-label.area-INCMNSZ { background: var(--c-INCMNSZ); }
+  .area-label.area-TEC { background: var(--c-TEC); }
+  .area-label.area-Agenda { background: var(--c-Agenda); }
+  .area-label.area-Personal { background: var(--c-Personal); }
+  .area-label.area-Otros { background: var(--c-Otros); }
+  .card .attach { font-size: 9.5px; }
+  .card .subject { font-size: 12.8px; font-weight: 800; color: #1c1c1e; margin-top: 5px; line-height: 1.28; }
+
+  .who-when {
+    margin-top: 8px; background: #f7f5f2; border: 1px solid #ececec; padding: 6px 8px;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .who-when .line { display: flex; align-items: baseline; gap: 6px; font-size: 10.5px; }
+  .who-when .ico { width: 13px; text-align: center; flex-shrink: 0; }
+  .who-when .who-name { font-weight: 700; color: #1c1c1e; }
+  .who-when .who-email { color: #8a8a86; font-size: 9.5px; }
+  .who-when .when { color: var(--c-TEC); font-weight: 700; }
+
+  .card .desc { font-size: 11px; color: #444; margin-top: 7px; line-height: 1.42; border-top: 1px dashed #e2e2e2; padding-top: 7px; }
+
+  .empty { font-size: 11px; color: #6b6b6b; padding: 20px 8px; font-style: italic; text-align: center; border: 2px dashed #3a3a3a; }
+
+  /* ---- calendar (literal mini month grid) ---- */
+  .calwrap { padding: 22px 40px 44px; display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+  .calbox { background: #202020; border: 2px solid #2c2c2c; padding: 16px; }
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-nav .arrow { cursor: pointer; color: #fff; font-size: 15px; padding: 4px 10px; border: 1px solid #444; user-select: none; }
+  .cal-nav .arrow:hover { border-color: var(--c-urgente); color: var(--c-urgente); }
+  .cal-nav .monthlabel { color: #fff; font-weight: 800; text-transform: uppercase; font-size: 13px; letter-spacing: 0.04em; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-dow { font-size: 9px; text-transform: uppercase; color: #7a7a76; text-align: center; padding-bottom: 4px; }
+  .cal-day {
+    aspect-ratio: 1; background: #2a2a2a; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; position: relative; border: 2px solid transparent;
+  }
+  .cal-day.empty-day { background: transparent; cursor: default; }
+  .cal-day .num { font-size: 11.5px; color: #ddd; font-weight: 700; }
+  .cal-day.selected { border-color: var(--c-urgente); }
+  .cal-day.today .num { color: var(--c-urgente); }
+  .cal-day .dots { display: flex; gap: 2px; margin-top: 3px; }
+  .cal-day .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .cal-legend { margin-top: 12px; display: flex; flex-direction: column; gap: 5px; }
+  .cal-legend .lrow { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #b0b0ac; }
+  .cal-legend .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .cal-daylist-head { color: #fff; font-size: 15px; font-weight: 900; text-transform: uppercase; margin-bottom: 4px; }
+  .cal-daylist-sub { color: #8a8a86; font-size: 11px; margin-bottom: 14px; }
+  .cal-daylist { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ---- modal preview ---- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(10,10,10,0.6);
+    display: none; align-items: center; justify-content: center; z-index: 100; padding: 24px;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: #fff; max-width: 520px; width: 100%; border: 2px solid #1c1c1e;
+    max-height: 88vh; overflow-y: auto;
+  }
+  .modal-head { padding: 16px 18px 12px; border-bottom: 2px dashed #e2e2e2; display: flex; gap: 10px; align-items: flex-start; }
+  .modal-head .avatar { width: 36px; height: 36px; font-size: 13px; }
+  .modal-head .htext { flex: 1; }
+  .modal-head .subject { font-size: 16px; font-weight: 800; line-height: 1.3; }
+  .modal-close { cursor: pointer; font-size: 18px; color: #9a9a96; padding: 2px 6px; }
+  .modal-body { padding: 14px 18px 18px; }
+  .modal-who-when { background: #f7f5f2; border: 1px solid #ececec; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .modal-who-when .line { display: flex; gap: 7px; font-size: 12px; align-items: baseline; }
+  .modal-who-when .ico { width: 15px; text-align: center; }
+  .modal-badges { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .modal-badges span { font-size: 10px; text-transform: uppercase; font-weight: 800; padding: 3px 9px; color: #fff; }
+  .modal-section-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: #9a8a7c; margin: 14px 0 5px; }
+  .modal-desc { font-size: 12.5px; line-height: 1.55; color: #333; }
+  .modal-context { font-size: 12px; line-height: 1.55; color: #555; background: #fafafa; border-left: 3px solid #ddd; padding: 8px 10px; }
+  .modal-reason { font-size: 11.5px; line-height: 1.5; color: #6b6b70; font-style: italic; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  .btn { flex: 1; min-width: 140px; text-align: center; padding: 10px 12px; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; border: 2px solid #1c1c1e; text-decoration: none; }
+  .btn-primary { background: #1c1c1e; color: #fff; }
+  .btn-primary:hover { background: var(--c-urgente); border-color: var(--c-urgente); }
+  .btn-secondary { background: #fff; color: #1c1c1e; }
+  .btn-resolve { background: var(--c-resuelto); color: #fff; border-color: var(--c-resuelto); }
+
+  footer { padding: 16px 40px 30px; font-size: 9.5px; color: #6b6b6b; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* ---- pantalla de contraseña ---- */
+  .pwgate {
+    position: fixed; inset: 0; background: #171717; z-index: 200;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+  }
+  .pwgate.hidden { display: none; }
+  .pwgate .pwbox { background: #fbeee4; border: 2px solid #1c1c1e; padding: 32px 36px; width: 100%; max-width: 340px; }
+  .pwgate .pwword { font-weight: 900; font-size: 22px; text-transform: uppercase; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .pwgate .pwword span { color: var(--c-urgente); }
+  .pwgate .pwsub { font-size: 11px; color: #7a7a76; margin-bottom: 18px; }
+  .pwgate input[type=password] { width: 100%; border: 2px solid #1c1c1e; padding: 10px 12px; font-size: 13px; outline: none; margin-bottom: 10px; }
+  .pwgate .pwbtn { width: 100%; background: #1c1c1e; color: #fff; border: 2px solid #1c1c1e; padding: 10px; font-weight: 800; text-transform: uppercase; font-size: 11.5px; cursor: pointer; letter-spacing: 0.04em; }
+  .pwgate .pwbtn:hover { background: var(--c-urgente); border-color: var(--c-urgente); }
+  .pwgate .pwerr { color: var(--c-urgente); font-size: 11px; margin-top: 8px; display: none; font-weight: 700; }
+  .pwgate .pwerr.show { display: block; }
+
+  /* ---- pendientes con fecha ---- */
+  .todowrap { background: #fbeee4; padding: 4px 40px 22px; border-bottom: 1px dashed #d8c4b6; }
+  .todo-header { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: #9a8a7c; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .todo-count { color: #1c1c1e; font-weight: 800; }
+  .todo-add { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .todo-add input[type=text] { flex: 1; min-width: 200px; border: 2px solid #1c1c1e; padding: 7px 11px; font-size: 12px; outline: none; }
+  .todo-add input[type=date] { border: 2px solid #1c1c1e; padding: 7px 8px; font-size: 12px; outline: none; }
+  .todo-add button { border: 2px solid #1c1c1e; background: #1c1c1e; color: #fff; padding: 7px 16px; font-size: 11px; font-weight: 800; text-transform: uppercase; cursor: pointer; }
+  .todo-add button:hover { background: var(--c-urgente); border-color: var(--c-urgente); }
+  .todo-list { display: flex; flex-direction: column; gap: 6px; }
+  .todo-item {
+    display: flex; align-items: center; gap: 10px; background: #fff; border: 2px solid #1c1c1e; padding: 8px 12px;
+  }
+  .todo-item.overdue { border-color: var(--c-urgente); background: #fff5f4; }
+  .todo-item.soon { border-color: var(--c-revisar); background: #fffaf0; }
+  .todo-item.done { opacity: 0.5; }
+  .todo-item .chk { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; accent-color: var(--c-urgente); }
+  .todo-item .ttext { flex: 1; font-size: 12.5px; font-weight: 700; }
+  .todo-item.done .ttext { text-decoration: line-through; }
+  .todo-item .tdate { font-size: 10.5px; font-weight: 800; color: #6b6b70; white-space: nowrap; }
+  .todo-item.overdue .tdate { color: var(--c-urgente); }
+  .todo-item.soon .tdate { color: #b8860b; }
+  .todo-item .tdel { cursor: pointer; color: #b5aca4; font-size: 13px; padding: 0 4px; }
+  .todo-item .tdel:hover { color: var(--c-urgente); }
+  .todo-empty { font-size: 11px; color: #9a8a7c; font-style: italic; }
+
+  @media (max-width: 900px) {
+    .board { grid-template-columns: 1fr; }
+    .board.show-resuelto { grid-template-columns: 1fr; }
+    .col-head { position: static; }
+    .calwrap { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="pwgate" id="pwGate">
+  <div class="pwbox">
+    <div class="pwword">TRIA<span>GE</span></div>
+    <div class="pwsub mono">Acceso privado del equipo · ingresa la contraseña</div>
+    <input type="password" id="pwInput" placeholder="Contraseña">
+    <div class="pwbtn" id="pwBtn">Entrar</div>
+    <div class="pwerr" id="pwErr">Contraseña incorrecta. Intenta de nuevo.</div>
+  </div>
+</div>
+
+<div class="rail"></div>
+
+<div class="hero">
+  <div class="hero-top">
+    <div>
+      <div class="wordmark">TRIA<span>GE</span></div>
+      <div class="hero-sub mono">Un correo entra. Se clasifica en 2 segundos. Arrastra para corregir.</div>
+    </div>
+    <div class="hero-card">
+      <div class="swatch">📥</div>
+      <div class="info">
+        <div class="title" id="heroTitle">Urgente hoy</div>
+        <div class="code mono" id="heroCode">TRZ 001</div>
+        <div class="updated mono" id="updatedAt">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="summary" id="summaryCards"></div>
+</div>
+
+<div class="upcoming">
+  <div class="upcoming-label mono">📅 PRÓXIMAS FECHAS QUE MENCIONAN LOS CORREOS</div>
+  <div class="upcoming-row" id="upcomingRow"></div>
+</div>
+
+<div class="todowrap">
+  <div class="todo-header mono">📌 PENDIENTES DEL EQUIPO <span class="todo-count" id="todoCount">0</span></div>
+  <div class="todo-add">
+    <input type="text" id="todoText" placeholder="Nuevo pendiente…">
+    <input type="date" id="todoDate">
+    <button id="todoAddBtn">Agregar</button>
+  </div>
+  <div class="todo-list" id="todoList"></div>
+</div>
+
+<div class="controls" style="position:relative;">
+  <div class="controls-row">
+    <div>
+      <div class="controls-label mono">FILTRAR POR ÁREA</div>
+      <div class="tabs" id="areaTabs"></div>
+    </div>
+    <div class="toolbar">
+      <div class="viewSwitch">
+        <div class="v active" data-view="kanban">📋 Kanban</div>
+        <div class="v" data-view="calendar">📆 Calendario</div>
+      </div>
+      <input class="search" id="searchBox" type="text" placeholder="Buscar remitente o palabra clave…">
+      <div class="toggle" id="attachToggle">📎 Solo con adjunto</div>
+      <div class="colorbtn" id="colorBtn">🎨 Colores</div>
+    </div>
+  </div>
+  <div class="colorpanel" id="colorPanel">
+    <h4>Personalizar colores</h4>
+    <div class="colorrow"><label>🔴 Urgente</label><input type="color" data-var="--c-urgente" value="#d7263d"></div>
+    <div class="colorrow"><label>🟡 Vale la pena revisar</label><input type="color" data-var="--c-revisar" value="#f2a900"></div>
+    <div class="colorrow"><label>⚪ Ruido</label><input type="color" data-var="--c-ruido" value="#5b6472"></div>
+    <div class="colorrow"><label>✅ Resuelto</label><input type="color" data-var="--c-resuelto" value="#12a578"></div>
+    <div class="colorrow"><label>🏥 INCMNSZ</label><input type="color" data-var="--c-INCMNSZ" value="#2360c9"></div>
+    <div class="colorrow"><label>🎓 TEC</label><input type="color" data-var="--c-TEC" value="#b85c1a"></div>
+    <div class="colorrow"><label>📅 Agenda</label><input type="color" data-var="--c-Agenda" value="#6b3fc9"></div>
+    <div class="colorrow"><label>👤 Personal</label><input type="color" data-var="--c-Personal" value="#1f8a4c"></div>
+    <div class="colorrow"><label>📦 Otros</label><input type="color" data-var="--c-Otros" value="#55555a"></div>
+    <div class="resetbtn" id="resetColors">Restablecer colores</div>
+  </div>
+</div>
+
+<div class="board" id="board"></div>
+
+<div class="calwrap" id="calwrap" style="display:none">
+  <div class="calbox">
+    <div class="cal-nav">
+      <div class="arrow" id="calPrev">‹</div>
+      <div class="monthlabel" id="calMonthLabel">—</div>
+      <div class="arrow" id="calNext">›</div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-legend">
+      <div class="lrow"><span class="dot" style="background:var(--c-urgente)"></span> Día con correo urgente</div>
+      <div class="lrow"><span class="dot" style="background:var(--c-revisar)"></span> Día con correo para revisar</div>
+      <div class="lrow"><span class="dot" style="background:var(--c-ruido)"></span> Solo ruido ese día</div>
+      <div class="lrow"><span class="dot" style="background:#fff;border:1px solid #999"></span> Fecha futura mencionada</div>
+    </div>
+  </div>
+  <div>
+    <div class="cal-daylist-head" id="calDayHead">Selecciona un día</div>
+    <div class="cal-daylist-sub" id="calDaySub"></div>
+    <div class="cal-daylist" id="calDayList"></div>
+  </div>
+</div>
+
+<footer class="mono">Bandeja de Diego Carrillo · clasificación por contenido, no por remitente · sin borradores de respuesta · los movimientos manuales se guardan en este navegador · clic en una tarjeta para vista previa</footer>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+const RAW_ITEMS = [
+  {id:"i1", gmailId:"19fddd17d1723f8d", u:"urgente", area:"INCMNSZ", subject:"34 EVALUACIONES TRIMESTRALES", senderName:"Karina Domínguez V.", senderEmail:"karina.dominguezv@incmnsz.mx", date:"7 ago", sortDate:"2026-08-07", attach:true, summary:"Envió las 34 hojas de evaluación en 2 versiones (con y sin membrete). Espera que confirmes recepción y cuál vas a usar para firmarlas.", context:"Es la segunda vez que Karina manda este tipo de evaluaciones este trimestre; usualmente necesita tu firma antes de que se suban al expediente académico de los residentes. No hay una fecha límite explícita en el correo, pero suele haber cierre de trimestre a fin de mes.", reason:"Urgente porque hay un archivo esperando tu acción directa (elegir versión y firmar), no es solo informativo."},
+  {id:"i2", gmailId:"19fd853d268d75f4", u:"urgente", area:"INCMNSZ", subject:"Orientación graduación oportuna", senderName:"Saira Ríos Q.", senderEmail:"saira.riosq@incmnsz.mx", date:"6 ago", sortDate:"2026-08-06", attach:false, summary:"Pregunta directa sobre el proceso de Graduación Oportuna. Su periodo vacacional (1-15 sep) choca con el trámite y necesita tu orientación antes.", context:"Menciona que revisó el instructivo pero le quedaron dudas sobre los plazos; como su periodo vacacional empieza el 1 de septiembre, si no le respondes antes podría perder la ventana para tramitarlo a tiempo.", reason:"Urgente por tener una fecha límite real (inicio de vacaciones 1 sep) atada a un trámite administrativo.", futureDate:"2026-09-01", futureLabel:"Inicia periodo vacacional de Saira (1-15 sep)"},
+  {id:"i3", gmailId:"19fcf1d792eed645", u:"urgente", area:"INCMNSZ", subject:"RV: SS-CRI-DECI-076-2026 — comisiones en el extranjero", senderName:"José Alberto Ávila Funes", senderEmail:"alberto.avilaf@incmnsz.mx", date:"4 ago", sortDate:"2026-08-04", attach:false, summary:"Pide revisar la circular y comunicarla a residentes: quienes tengan estancias en el extranjero deben tramitar autorización correspondiente.", context:"Es un reenvío de Sector Salud; Ávila Funes espera que tú lo distribuyas a residencias.medicas@incmnsz.mx, no que tú mismo tramites nada — pero si no lo circulas, los residentes con estancias planeadas podrían quedar sin autorización a tiempo.", reason:"Urgente porque depende de ti que la información llegue a tiempo a terceros."},
+  {id:"i4", gmailId:"19fce114e16bdd23", u:"urgente", area:"INCMNSZ", subject:"Sesión MI - 05.08.2026", senderName:"Jefatura de Residentes", senderEmail:"jefatura.residentes@incmnsz.mx", date:"4 ago", sortDate:"2026-08-04", attach:true, summary:"Resumen del caso clínico que se presentaba al día siguiente de la sesión de Medicina Interna. Útil tenerlo revisado antes de la sesión.", context:"Correo con distribución amplia a todo el cuerpo médico; el adjunto es el resumen del caso. Si ya pasó la sesión, este correo pierde urgencia y puede archivarse.", reason:"Se marcó urgente por el plazo de un día, pero revisa la fecha: si ya se presentó la sesión, muévelo a Resuelto."},
+  {id:"i5", gmailId:"19fce685d4fdfdfd", u:"urgente", area:"INCMNSZ", subject:"Re: Planeación Protocolo de Investigación Educativa en el INCMNSZ", senderName:"AMBOSS — MJT", senderEmail:"mjt@amboss.com", date:"4 ago", sortDate:"2026-08-04", attach:false, summary:"Colaboradora externa confirma entusiasmo por el proyecto conjunto y queda a la espera de que definas los siguientes pasos.", context:"Es correspondencia externa (empresa AMBOSS) sobre un protocolo de investigación educativa conjunto con INCMNSZ; dejar esto sin respuesta por mucho tiempo puede enfriar la colaboración.", reason:"Urgente por tratarse de una contraparte externa esperando definición de pasos."},
+  {id:"i6", gmailId:"19fd6fbd76ff60b3", u:"urgente", area:"Agenda", subject:"RE: Mtg with Dr. Badr", senderName:"Mariela Andrade (Cooper Health)", senderEmail:"Andrade-Mariela@cooperhealth.edu", date:"6 ago", sortDate:"2026-08-06", attach:false, summary:"Ya te había escrito antes para agendar con Dr. Badr y sigue esperando que propongas un horario.", context:"Segundo intento de contacto de Mariela; el correo indica que ya te había escrito antes sin respuesta. Vale la pena revisar si el primer correo se perdió.", reason:"Urgente por ser un segundo seguimiento sin respuesta previa."},
+  {id:"i7", gmailId:"19fd4bcaf57208cd", u:"urgente", area:"TEC", subject:"Información importante sobre sesión de hoy por Teams", senderName:"english@tec", senderEmail:"englishtec@servicios.tec.mx", date:"6 ago", sortDate:"2026-08-06", attach:false, summary:"Aviso de último momento: la profesora Cristina Mayer no pudo dar la clase ese día. Puede requerir que avises o reprogrames con tu grupo.", context:"Aviso same-day; si tienes un grupo a tu cargo dentro de english@tec, probablemente tus alumnos también recibieron esto, pero conviene confirmar reprogramación.", reason:"Urgente por ser same-day y afectar una sesión ya en curso."},
+  {id:"i8", gmailId:"19fb9ec96f558e2a", u:"urgente", area:"Otros", subject:"Urgente: no se pudo cobrar tu seguro de auto (2 pólizas)", senderName:"Comunicados Raspberry (Tec)", senderEmail:"comunicadosraspberry@servicios.tec.mx", date:"31 jul", sortDate:"2026-07-31", attach:false, summary:"Pago fallido en dos pólizas de auto (AK45502523 y AK45501179). El plazo (7 ago) ya venció — riesgo real de perder cobertura.", context:"Dos pólizas afectadas: una del auto antiguo (2002) y otra del Lexus (2023). El plazo límite mencionado en el correo (7 de agosto) ya pasó respecto a hoy, así que conviene confirmar si ya se resolvió o si perdiste cobertura.", reason:"Urgente por consecuencia financiera directa y plazo ya vencido."},
+
+  {id:"i9", gmailId:"19fe3499c8e2e99d", u:"revisar", area:"TEC", subject:"Seguridad de Microsoft 365: mensajes en cuarentena", senderName:"Microsoft Quarantine", senderEmail:"quarantine@messaging.microsoft.com", date:"varias (6x)", sortDate:"2026-08-08", attach:false, summary:"Correos retenidos pendientes de revisión desde hace días. Vale la pena revisar si algo legítimo quedó atrapado.", context:"Se repite casi a diario; normalmente son intentos de spam, pero conviene revisar el portal de cuarentena una vez a la semana por si algo importante quedó filtrado.", reason:"No es un correo real con contenido — es una notificación automática de que HAY algo por revisar en otro sistema."},
+  {id:"i10", gmailId:"19fddab2ced19c75", u:"revisar", area:"INCMNSZ", subject:"Elemento compartido: Luis Rocha_Letter of Recommendation.pdf", senderName:"Pasantes INCMNSZ (Drive)", senderEmail:"mpss.incmnsz@gmail.com", date:"7 ago", sortDate:"2026-08-07", attach:true, summary:"Se compartió contigo una carta de recomendación. Confirmar si necesita tu revisión, firma o solo es informativo.", context:"El archivo ya se envió también por AAMC/ERAS (ver correo relacionado del 7 ago), así que esto probablemente es solo copia de respaldo, no requiere acción adicional.", reason:"Se marcó 'revisar' y no 'urgente' porque parece una copia informativa, no una solicitud nueva."},
+  {id:"i11", gmailId:"19fd8bfecbff729d", u:"revisar", area:"Personal", subject:"Alerta de seguridad — nuevo inicio de sesión en Mac", senderName:"Google", senderEmail:"no-reply@accounts.google.com", date:"varias", sortDate:"2026-08-06", attach:false, summary:"Varios inicios de sesión nuevos detectados en tu cuenta esta semana. Confirmar que todos fueron tuyos.", context:"Se repitió varias veces en la semana, probablemente por cambios de red o reinicios del Mac. Si reconoces el dispositivo, no requiere acción; si no, cambia tu contraseña.", reason:"Vale la pena revisar por seguridad, aunque lo más probable es que sea normal."},
+  {id:"i12", gmailId:"19fd9ad5c13abf86", u:"revisar", area:"TEC", subject:"Recordatorio | Registro de premios, distinciones y logros académicos", senderName:"J. Beltrán (Tec)", senderEmail:"jbeltrans@tec.mx", date:"7 ago", sortDate:"2026-08-07", attach:false, summary:"Recordatorio institucional para registrar reconocimientos del periodo abril-junio 2026, si aplica en tu caso.", context:"Aplica solo si tuviste algún reconocimiento formal en ese periodo; si no, se puede ignorar sin problema.", reason:"Revisar porque depende de tu situación personal si aplica o no."},
+  {id:"i13", gmailId:"19fde07975bbac87", u:"revisar", area:"Otros", subject:"No hemos podido procesar tu pago", senderName:"Prezi Billing", senderEmail:"email@info.prezi.com", date:"7 ago", sortDate:"2026-08-07", attach:false, summary:"Falla de cobro en tu suscripción de Prezi. Confirmar si la sigues usando antes de que se suspenda el servicio.", context:"Si no usas Prezi activamente, puedes dejar que se cancele sola; si sí la usas para presentaciones, actualiza el método de pago antes de perder acceso.", reason:"Revisar porque depende de si el servicio te sigue siendo útil."},
+  {id:"i14", gmailId:"19fd852b6e8a05c1", u:"revisar", area:"Otros", subject:"VIE - Orientation Schedule Sept 2-4", senderName:"TRUE North (Victoria Intl. Education)", senderEmail:"do-not-reply@mytruenorth.ca", date:"6 ago", sortDate:"2026-08-06", attach:false, summary:"Itinerario de orientación para Axel Nahum Carrillo Domínguez. Revisar fechas y logística.", context:"Es para un familiar (Axel Nahum Carrillo Domínguez), no para ti directamente — probablemente conviene reenviarlo a quien organiza su viaje.", reason:"Revisar porque tiene fecha concreta pero no requiere que tú actúes, solo que te asegures que Axel la tenga.", futureDate:"2026-09-02", futureLabel:"Orientación VIE de Axel (2-4 sep)"},
+  {id:"i15", gmailId:"19fd7b335f6af342", u:"revisar", area:"INCMNSZ", subject:"CIRCULAR 018-S.R.H-26", senderName:"Administrador INCMNSZ", senderEmail:"administrador@incmnsz.mx", date:"6 ago", sortDate:"2026-08-06", attach:false, summary:"Circular de Recursos Humanos sin resumen visible en el correo. Conviene abrirla para saber si te aplica algo.", context:"Al no tener snippet visible, no fue posible confirmar el contenido exacto por el resumen automático; se recomienda abrirla directamente.", reason:"Revisar por incertidumbre — no se pudo confirmar el contenido con el snippet disponible."},
+  {id:"i16", gmailId:"19fba1bde2f8096e", u:"revisar", area:"INCMNSZ", subject:"DA/14/2026", senderName:"Administrador INCMNSZ", senderEmail:"administrador@incmnsz.mx", date:"31 jul", sortDate:"2026-07-31", attach:false, summary:"Disposición administrativa sin contenido visible en snippet. Revisar por si tiene fecha límite asociada.", context:"Mismo caso que la circular 018: sin snippet visible. Estas disposiciones suelen tener fechas de cumplimiento, vale la pena confirmar.", reason:"Revisar por incertidumbre de contenido."},
+  {id:"i17", gmailId:"19fb93ac8f0bc1a4", u:"revisar", area:"TEC", subject:"Tu compensación evoluciona: conoce los detalles", senderName:"Tec de Monterrey", senderEmail:"avisos-comunicacion@mensajes.tec.mx", date:"31 jul", sortDate:"2026-07-31", attach:false, summary:"Cambios en el esquema de compensación docente. Información personal relevante para tu planeación.", context:"Es comunicación institucional sobre cambios salariales/compensación; afecta directamente tus ingresos como docente, aunque no requiere respuesta inmediata.", reason:"Revisar por relevancia financiera personal, aunque no hay acción urgente que tomar."},
+  {id:"i18", gmailId:"19fb63ea1767d745", u:"revisar", area:"Agenda", subject:"Aceptado: Reunión Comité Selección Residentes Med Interna", senderName:"Ávila Funes / Judith González", senderEmail:"alberto.avilaf@incmnsz.mx", date:"31 jul", sortDate:"2026-07-31", attach:false, summary:"Confirmaron asistencia a la reunión del 3 de agosto. Sin acción salvo tener presente la reunión.", context:"Notificación automática de calendario; la reunión referida (3 ago) ya pasó respecto a hoy, así que probablemente puede archivarse.", reason:"Revisar solo para verificar si la reunión ya ocurrió; si sí, mover a Resuelto."},
+  {id:"i19", gmailId:"19fb4940debdc293", u:"revisar", area:"Agenda", subject:"Aceptado: Reunión con Adrián Soto — Tema AMBOSS", senderName:"Adrian Soto-Mota", senderEmail:"adrian.sotom@incmnsz.mx", date:"30 jul", sortDate:"2026-07-30", attach:false, summary:"Confirmación de reunión del 4 de agosto sobre el proyecto AMBOSS.", context:"Relacionado con el correo urgente de AMBOSS (i5); esta reunión probablemente ya se llevó a cabo y explica el seguimiento posterior.", reason:"Revisar para confirmar si ya ocurrió la reunión del 4 ago."},
+  {id:"i20", gmailId:"19fba46162c5c2cf", u:"revisar", area:"Otros", subject:"Conferencias Médica Sur IT — Comité Interno de Trasplantes", senderName:"Médica Sur — Help Desk", senderEmail:"helpdesk@medicasur.org.mx", date:"31 jul", sortDate:"2026-07-31", attach:false, summary:"Invitación a junta por Zoom de un comité externo. Confirmar si te concierne asistir.", context:"Institución externa (Médica Sur), no INCMNSZ ni Tec; revisar si tu participación en este comité sigue vigente.", reason:"Revisar porque no está claro si sigues activo en ese comité."},
+  {id:"i21", gmailId:"19fb5afabc813f4b", u:"revisar", area:"Otros", subject:"Credenciales de acceso Compilatio (doble factor)", senderName:"UNAM — Posgrado Medicina", senderEmail:"avisosacademicos@fmposgrado.unam.mx", date:"31 jul", sortDate:"2026-07-31", attach:false, summary:"Credenciales nuevas de una plataforma antiplagio. Guardar o activar si la vas a usar.", context:"Necesarias si revisas tesis o trabajos de posgrado en UNAM; si no tienes pendientes de revisión, puedes dejarlas guardadas para cuando las necesites.", reason:"Revisar y guardar, sin urgencia inmediata."},
+  {id:"i22", gmailId:"19fd6166c637d4ae", u:"revisar", area:"Otros", subject:"Tu prueba de Doki terminó / vence mañana / quedan días", senderName:"Doki", senderEmail:"noreply@mail.heydoki.app", date:"varias", sortDate:"2026-08-06", attach:false, summary:"La prueba gratuita ya venció; la cuenta pasó a plan gratuito. Revisar si perdiste alguna función que sí usabas.", context:"Doki es una app de agenda/recordatorios para pacientes; si la usabas para confirmaciones automáticas por WhatsApp, esa función se perdió al pasar a plan gratuito.", reason:"Revisar porque puede afectar un flujo que ya tenías configurado (confirmaciones a pacientes)."},
+  {id:"i23", gmailId:"19fc89c86667da82", u:"revisar", area:"TEC", subject:"Aviso importante — english@tec", senderName:"english@tec", senderEmail:"englishtec@servicios.tec.mx", date:"3 ago", sortDate:"2026-08-03", attach:false, summary:"Aviso general del programa de inglés. Confirmar si aplica a tu grupo específico.", context:"Mensaje genérico enviado a toda la comunidad del programa; solo aplica si tienes un grupo activo este periodo.", reason:"Revisar porque depende de tu situación con el curso."},
+  {id:"i24", gmailId:"19fcdf08693bcfdc", u:"revisar", area:"Otros", subject:"Confirm your AMBOSS-Account", senderName:"AMBOSS", senderEmail:"hello@amboss.com", date:"4 ago", sortDate:"2026-08-04", attach:false, summary:"Verificación de cuenta pendiente, necesaria para avanzar la colaboración con AMBOSS.", context:"Paso técnico necesario para poder seguir la colaboración mencionada en el correo urgente de AMBOSS (i5). Sin esta verificación, el proyecto podría estancarse.", reason:"Revisar porque es un prerequisito técnico de algo urgente en otra tarjeta."},
+
+  {id:"i25", gmailId:"19fe447fdc46e602", u:"ruido", area:"Otros", subject:"Academia.edu — trials, menciones, promociones", senderName:"Academia.edu", senderEmail:"premium@academia-mail.com", date:"varias", sortDate:"2026-08-05", attach:false, summary:"Marketing recurrente y notificaciones de menciones. Sin acción necesaria.", context:"Correos automáticos de marketing y menciones de tu perfil institucional; se pueden ignorar o silenciar desde configuración de Academia.edu.", reason:"Ruido: no requiere acción, es promocional."},
+  {id:"i26", gmailId:"19fdd245bf8804c4", u:"ruido", area:"TEC", subject:"Resumen diario de Instituto Tecnológico de Monterrey", senderName:"ITESM Engage", senderEmail:"noreply_itesm@engage.mail.microsoft", date:"diario", sortDate:"2026-08-07", attach:false, summary:"Boletín automático diario de publicaciones internas.", context:"Se repite todos los días laborales; considera silenciarlo si no lo lees.", reason:"Ruido: boletín automático recurrente."},
+  {id:"i27", gmailId:"19fdc8945254bcc0", u:"ruido", area:"INCMNSZ", subject:"Comité de Ética — principios y valores institucionales", senderName:"Comité de Ética INCMNSZ", senderEmail:"comite.etica.informa@incmnsz.mx", date:"varias", sortDate:"2026-08-05", attach:false, summary:"Serie de correos informativos institucionales recurrentes, sin acción requerida.", context:"Envían un principio distinto casi a diario; puramente informativo y repetitivo.", reason:"Ruido: comunicado institucional recurrente sin acción."},
+  {id:"i28", gmailId:"19fc79f210bffdf8", u:"ruido", area:"Personal", subject:"Alertas de seguridad Google rutinarias", senderName:"Google", senderEmail:"no-reply@accounts.google.com", date:"varias", sortDate:"2026-08-03", attach:false, summary:"Alertas rutinarias de acceso desde dispositivos ya reconocidos.", context:"A diferencia de la alerta marcada como 'revisar', estas ya corresponden a dispositivos que reconoces con patrón habitual.", reason:"Ruido: dispositivo ya reconocido, sin indicio de acceso sospechoso."},
+  {id:"i29", gmailId:"19fde33a620d02c2", u:"ruido", area:"Otros", subject:"Códigos de verificación AAMC / confirmaciones", senderName:"AAMC", senderEmail:"accounthelp@aamc.org", date:"varias", sortDate:"2026-08-06", attach:false, summary:"Códigos de un solo uso y confirmaciones de 2FA. Sin acción pendiente.", context:"Códigos ya usados o expirados; no hay nada que hacer con ellos ahora.", reason:"Ruido: código de un solo uso ya utilizado."},
+  {id:"i30", gmailId:"19fd30b8add72531", u:"ruido", area:"Otros", subject:"Recibos Aurora Inbox / Stripe", senderName:"Stripe", senderEmail:"invoice+statements@stripe.com", date:"varias", sortDate:"2026-08-05", attach:true, summary:"Recibos normales de suscripción, montos esperados, sin adjuntos que revisar con urgencia.", context:"Montos consistentes con suscripciones activas conocidas; útil guardarlos para contabilidad, pero sin acción inmediata.", reason:"Ruido: recibo esperado, monto normal."},
+  {id:"i31", gmailId:"19fce428681182fe", u:"ruido", area:"Otros", subject:"JAMA Network — nuevas ediciones", senderName:"JAMA Network", senderEmail:"updates@email.jamanetwork.com", date:"varias", sortDate:"2026-08-04", attach:false, summary:"Newsletter médico, lectura opcional.", context:"Buen contenido de lectura pero no urgente ni ligado a ninguna tarea pendiente.", reason:"Ruido: newsletter, lectura opcional."},
+  {id:"i32", gmailId:"19fc840cd38d42c5", u:"ruido", area:"Otros", subject:"MasterClass / Lecturio — promociones", senderName:"MasterClass / Lecturio", senderEmail:"support@email.masterclass.com", date:"varias", sortDate:"2026-08-03", attach:false, summary:"Marketing sin relación con trabajo.", context:"Publicidad recurrente; sin relación con tus tareas de INCMNSZ o Tec.", reason:"Ruido: puramente promocional."},
+  {id:"i33", gmailId:"19fd8e0d1057c185", u:"ruido", area:"TEC", subject:"Boletines institucionales (biblioteca, CEDDIE, ECOA, bienvenida)", senderName:"Tec de Monterrey (varios)", senderEmail:"avisos@envios.tec.mx", date:"varias", sortDate:"2026-08-04", attach:false, summary:"Comunicados informativos recurrentes del campus.", context:"Agrupa varios boletines similares del campus; ninguno requiere respuesta.", reason:"Ruido: boletines informativos recurrentes."},
+  {id:"i34", gmailId:"19fb99f7595d0f70", u:"ruido", area:"INCMNSZ", subject:"Circulares informativas (Camiseta, Libranza, invitaciones)", senderName:"Administrador INCMNSZ", senderEmail:"administrador@incmnsz.mx", date:"varias", sortDate:"2026-07-31", attach:false, summary:"Comunicados generales sin acción individual requerida.", context:"Boletines institucionales agrupados; ninguno pide una acción de tu parte específicamente.", reason:"Ruido: comunicado general, sin acción individual."},
+  {id:"i35", gmailId:"19fce8b4239d2be5", u:"ruido", area:"Personal", subject:"Nuevo inicio de sesión — Notion", senderName:"Notion", senderEmail:"notify@updates.notion.so", date:"varias", sortDate:"2026-08-04", attach:false, summary:"Alertas rutinarias de acceso a tu cuenta de Notion.", context:"Consistente con tus dispositivos habituales.", reason:"Ruido: acceso reconocido."},
+  {id:"i36", gmailId:"19fd3d44533e0052", u:"ruido", area:"Otros", subject:"Fireflies — recap automático de reunión", senderName:"Fireflies.ai", senderEmail:"fred@fireflies.ai", date:"5 ago", sortDate:"2026-08-05", attach:false, summary:"Notas generadas automáticamente de la reunión PREPARÉ, ya disponibles si se necesitan.", context:"Notas y grabación disponibles bajo demanda; no hace falta revisarlas salvo que necesites repasar algo puntual de esa reunión.", reason:"Ruido: recap automático, disponible bajo demanda."}
+];
+
+function gmailLink(gmailId) {
+  return "https://mail.google.com/mail/u/0/#all/" + gmailId;
+}
+
+const meta = {
+  urgente: {label: "Urgente hoy", num: "01", desc: "Personas reales o deadlines reales.", cssvar: "--c-urgente"},
+  revisar: {label: "Vale la pena revisar", num: "02", desc: "No es crítico, pero tiene consecuencia si se ignora.", cssvar: "--c-revisar"},
+  ruido: {label: "Ruido", num: "03", desc: "Boletines y confirmaciones automáticas.", cssvar: "--c-ruido"},
+  resuelto: {label: "Resuelto / Visto", num: "04", desc: "Ya lo atendiste — fuera del radar.", cssvar: "--c-resuelto"}
+};
+
+const areaIcon = { INCMNSZ: "🏥", TEC: "🎓", Agenda: "📅", Personal: "👤", Otros: "📦" };
+const MESES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+const MESES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DOW = ["L","M","M","J","V","S","D"];
+
+const STORAGE_KEY = "inbox-triage-overrides-v1";
+const COLOR_KEY = "inbox-triage-colors-v1";
+
+function loadOverrides() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch(e) { return {}; }
+}
+function saveOverride(id, u) {
+  const o = loadOverrides();
+  o[id] = u;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(o));
+}
+
+function getItems() {
+  const overrides = loadOverrides();
+  return RAW_ITEMS.map(i => ({...i, u: overrides[i.id] || i.u}));
+}
+
+function initials(name) {
+  const parts = name.replace(/[()]/g, '').split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+function fmtDayHead(iso) {
+  const d = new Date(iso + "T00:00:00");
+  return d.getDate() + " de " + MESES_LARGO[d.getMonth()];
+}
+
+let currentFilter = 'Todas';
+let searchTerm = '';
+let attachOnly = false;
+const showResolved = true; // la columna Resuelto siempre está activa, no es un toggle
+let currentView = 'kanban';
+let calYear = 2026, calMonth = 7; // agosto 2026 (0-indexed)
+let selectedDay = null;
+
+function matches(i) {
+  if (currentFilter !== 'Todas' && i.area !== currentFilter) return false;
+  if (attachOnly && !i.attach) return false;
+  if (!showResolved && i.u === 'resuelto') return false;
+  if (searchTerm) {
+    const hay = (i.senderName + ' ' + i.senderEmail + ' ' + i.subject + ' ' + i.summary).toLowerCase();
+    if (!hay.includes(searchTerm.toLowerCase())) return false;
+  }
+  return true;
+}
+
+/* ---- colores personalizables ---- */
+function applyColors(colors) {
+  Object.keys(colors).forEach(v => document.documentElement.style.setProperty(v, colors[v]));
+}
+function loadColors() {
+  try { return JSON.parse(localStorage.getItem(COLOR_KEY) || "{}"); } catch(e) { return {}; }
+}
+function saveColors(colors) { localStorage.setItem(COLOR_KEY, JSON.stringify(colors)); }
+
+function initColorPanel() {
+  const saved = loadColors();
+  document.querySelectorAll('#colorPanel input[type=color]').forEach(inp => {
+    const v = inp.dataset.var;
+    if (saved[v]) inp.value = saved[v];
+    inp.addEventListener('input', () => {
+      const colors = loadColors();
+      colors[v] = inp.value;
+      saveColors(colors);
+      applyColors(colors);
+    });
+  });
+  applyColors(saved);
+  document.getElementById('colorBtn').addEventListener('click', () => {
+    document.getElementById('colorPanel').classList.toggle('open');
+  });
+  document.getElementById('resetColors').addEventListener('click', () => {
+    localStorage.removeItem(COLOR_KEY);
+    document.querySelectorAll('#colorPanel input[type=color]').forEach(inp => {
+      inp.value = inp.getAttribute('value');
+      document.documentElement.style.removeProperty(inp.dataset.var);
+    });
+  });
+  document.addEventListener('click', e => {
+    const panel = document.getElementById('colorPanel');
+    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target.id !== 'colorBtn') {
+      panel.classList.remove('open');
+    }
+  });
+}
+
+/* ---- kanban ---- */
+function renderBoard() {
+  const allItems = getItems();
+  const items = allItems.filter(matches);
+  const total = items.length || 1;
+  const board = document.getElementById('board');
+  board.className = 'board' + (showResolved ? ' show-resuelto' : '');
+  board.innerHTML = '';
+  const cols = showResolved ? ['urgente','revisar','ruido','resuelto'] : ['urgente','revisar','ruido'];
+  cols.forEach(u => {
+    const colItems = items.filter(i => i.u === u);
+    const col = document.createElement('div');
+    col.className = 'col ' + u;
+    col.innerHTML = `
+      <div class="col-head">
+        <div class="col-head-row">
+          <span class="num-badge">${meta[u].num}</span>
+          <span class="col-title">${meta[u].label}</span>
+          <span class="col-count">${colItems.length}</span>
+        </div>
+        <div class="col-desc">${meta[u].desc}</div>
+        <div class="col-progress"><div class="col-progress-fill" style="width:${Math.round(colItems.length/total*100)}%"></div></div>
+      </div>
+    `;
+    const zone = document.createElement('div');
+    zone.className = 'dropzone';
+    zone.dataset.col = u;
+
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      const id = e.dataTransfer.getData('text/plain');
+      saveOverride(id, u);
+      renderBoard();
+      renderSummary();
+    });
+
+    if (colItems.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = '— vacío para este filtro —';
+      zone.appendChild(empty);
+    } else {
+      colItems.forEach(i => {
+        const c = document.createElement('div');
+        c.className = 'card border-' + i.area;
+        c.draggable = true;
+        c.dataset.id = i.id;
+        let movedDuringDrag = false;
+        c.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', i.id);
+          c.classList.add('dragging');
+          movedDuringDrag = true;
+        });
+        c.addEventListener('dragend', () => c.classList.remove('dragging'));
+        c.addEventListener('click', () => { if (!movedDuringDrag) openModal(i); movedDuringDrag = false; });
+        c.innerHTML = `
+          <div class="card-top">
+            <div class="avatar area-${i.area}">${initials(i.senderName)}</div>
+            <div class="card-head-text">
+              <div class="topline">
+                <span class="area-label area-${i.area}">${areaIcon[i.area]} ${i.area}</span>
+                ${i.attach ? '<span class="attach">📎</span>' : ''}
+              </div>
+              <div class="subject">${i.subject}</div>
+            </div>
+          </div>
+          <div class="who-when">
+            <div class="line"><span class="ico">👤</span><span class="who-name">${i.senderName}</span></div>
+            <div class="line"><span class="ico">✉️</span><span class="who-email mono">${i.senderEmail}</span></div>
+            <div class="line"><span class="ico">🗓️</span><span class="when">${i.date}</span></div>
+          </div>
+          <div class="desc">${i.summary}</div>
+        `;
+        zone.appendChild(c);
+      });
+    }
+    col.appendChild(zone);
+    board.appendChild(col);
+  });
+}
+
+/* ---- calendario literal ---- */
+function renderCalendar() {
+  document.getElementById('calMonthLabel').textContent = MESES_LARGO[calMonth] + ' ' + calYear;
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  DOW.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'cal-dow';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const items = getItems();
+  const firstOfMonth = new Date(calYear, calMonth, 1);
+  let startOffset = firstOfMonth.getDay() - 1; // lunes=0
+  if (startOffset < 0) startOffset = 6;
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const todayIso = "2026-08-09";
+
+  for (let k = 0; k < startOffset; k++) {
+    const filler = document.createElement('div');
+    filler.className = 'cal-day empty-day';
+    grid.appendChild(filler);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = calYear + "-" + String(calMonth+1).padStart(2,'0') + "-" + String(day).padStart(2,'0');
+    const dayItems = items.filter(i => i.sortDate === iso && matches(i));
+    const futureItems = items.filter(i => i.futureDate === iso);
+    const cell = document.createElement('div');
+    cell.className = 'cal-day' + (iso === todayIso ? ' today' : '') + (iso === selectedDay ? ' selected' : '');
+    let dotsHtml = '';
+    const uSet = new Set(dayItems.map(i => i.u));
+    ['urgente','revisar','ruido'].forEach(u => {
+      if (uSet.has(u)) dotsHtml += `<span class="dot" style="background:var(${meta[u].cssvar})"></span>`;
+    });
+    if (futureItems.length > 0) dotsHtml += `<span class="dot" style="background:#fff;border:1px solid #999"></span>`;
+    cell.innerHTML = `<div class="num">${day}</div><div class="dots">${dotsHtml}</div>`;
+    cell.addEventListener('click', () => { selectedDay = iso; renderCalendar(); renderCalDayList(iso); });
+    grid.appendChild(cell);
+  }
+
+  document.getElementById('calPrev').onclick = () => { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); };
+  document.getElementById('calNext').onclick = () => { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); };
+
+  if (selectedDay) renderCalDayList(selectedDay);
+  else {
+    document.getElementById('calDayHead').textContent = 'Selecciona un día';
+    document.getElementById('calDaySub').textContent = 'Los puntos de color indican correos recibidos ese día; el punto blanco indica una fecha futura mencionada dentro de algún correo.';
+    document.getElementById('calDayList').innerHTML = '';
+  }
+}
+
+function renderCalDayList(iso) {
+  const items = getItems();
+  const received = items.filter(i => i.sortDate === iso && matches(i));
+  const future = items.filter(i => i.futureDate === iso);
+  document.getElementById('calDayHead').textContent = fmtDayHead(iso);
+  document.getElementById('calDaySub').textContent = received.length + ' correo(s) recibido(s)' + (future.length ? ' · ' + future.length + ' fecha(s) futura(s) mencionada(s) para este día' : '');
+  const list = document.getElementById('calDayList');
+  list.innerHTML = '';
+  future.forEach(i => {
+    const it = document.createElement('div');
+    it.className = 'agenda-item-fake';
+    it.style.cssText = 'background:#fff;border:2px solid #2a2a2a;border-left:7px solid #999;padding:10px 12px;cursor:pointer;';
+    it.innerHTML = `<div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#b85c1a;">📅 Fecha futura</div><div style="font-size:12.5px;font-weight:800;margin-top:3px;">${i.futureLabel}</div><div style="font-size:11px;color:#6b6b70;margin-top:3px;">Mencionado en: ${i.subject}</div>`;
+    it.addEventListener('click', () => openModal(i));
+    list.appendChild(it);
+  });
+  if (received.length === 0 && future.length === 0) {
+    list.innerHTML = '<div class="empty">— sin correos ni fechas futuras para este día —</div>';
+    return;
+  }
+  received.forEach(i => {
+    const it = document.createElement('div');
+    it.className = 'card border-' + i.area;
+    it.style.cursor = 'pointer';
+    it.innerHTML = `
+      <div class="card-top">
+        <div class="avatar area-${i.area}">${initials(i.senderName)}</div>
+        <div class="card-head-text">
+          <div class="topline">
+            <span class="area-label area-${i.area}">${areaIcon[i.area]} ${i.area}</span>
+            <span class="num-badge" style="background:var(${meta[i.u].cssvar})">${meta[i.u].num}</span>
+            ${i.attach ? '<span class="attach">📎</span>' : ''}
+          </div>
+          <div class="subject">${i.subject}</div>
+        </div>
+      </div>
+      <div class="who-when">
+        <div class="line"><span class="ico">👤</span><span class="who-name">${i.senderName}</span></div>
+        <div class="line"><span class="ico">✉️</span><span class="who-email mono">${i.senderEmail}</span></div>
+      </div>
+      <div class="desc">${i.summary}</div>
+    `;
+    it.addEventListener('click', () => openModal(i));
+    list.appendChild(it);
+  });
+}
+
+function renderUpcoming() {
+  const items = getItems().filter(i => i.futureDate);
+  items.sort((a,b) => a.futureDate.localeCompare(b.futureDate));
+  const row = document.getElementById('upcomingRow');
+  if (items.length === 0) {
+    row.innerHTML = '<div class="upcoming-empty">No se detectaron fechas futuras explícitas en los correos de esta corrida.</div>';
+    return;
+  }
+  row.innerHTML = items.map(i => {
+    const d = new Date(i.futureDate + "T00:00:00");
+    return `<div class="date-chip" style="cursor:pointer" data-jump="${i.futureDate}">
+      <div class="daybox"><div class="d">${d.getDate()}</div><div class="m">${MESES[d.getMonth()]}</div></div>
+      <div class="body"><div class="t">${i.futureLabel}</div><div class="s">${areaIcon[i.area]} ${i.area} · vía "${i.subject}"</div></div>
+    </div>`;
+  }).join('');
+  row.querySelectorAll('.date-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const iso = chip.dataset.jump;
+      const [y,m] = iso.split('-').map(Number);
+      calYear = y; calMonth = m - 1; selectedDay = iso;
+      switchView('calendar');
+      renderCalendar();
+    });
+  });
+}
+
+function renderSummary() {
+  const items = getItems();
+  const counts = {urgente:0, revisar:0, ruido:0, resuelto:0};
+  items.forEach(i => counts[i.u]++);
+  const total = items.length || 1;
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="cell urgente"><div class="n">${counts.urgente}</div><div class="l">Urgente</div><div class="bar" style="width:${Math.round(counts.urgente/total*100)}%"></div></div>
+    <div class="cell revisar"><div class="n">${counts.revisar}</div><div class="l">Vale la pena revisar</div><div class="bar" style="width:${Math.round(counts.revisar/total*100)}%"></div></div>
+    <div class="cell ruido"><div class="n">${counts.ruido}</div><div class="l">Ruido</div><div class="bar" style="width:${Math.round(counts.ruido/total*100)}%"></div></div>
+    <div class="cell resuelto"><div class="n">${counts.resuelto}</div><div class="l">Resueltos</div><div class="bar" style="width:${Math.round(counts.resuelto/total*100)}%"></div></div>
+  `;
+  document.getElementById('heroTitle').textContent = counts.urgente + ' urgente(s) hoy';
+  document.getElementById('heroCode').textContent = 'TRZ · ' + items.length + ' correos';
+}
+
+function renderTabs() {
+  const areas = ['Todas', ...new Set(RAW_ITEMS.map(i => i.area))];
+  const el = document.getElementById('areaTabs');
+  el.innerHTML = '';
+  areas.forEach(a => {
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (a === currentFilter ? ' active' : '');
+    tab.innerHTML = (a === 'Todas' ? '' : `<span class="icon">${areaIcon[a]}</span>`) + a;
+    tab.onclick = () => {
+      currentFilter = a;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      refresh();
+    };
+    el.appendChild(tab);
+  });
+}
+
+function refresh() {
+  if (currentView === 'kanban') { renderBoard(); } else { renderCalendar(); }
+}
+
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll('.viewSwitch .v').forEach(x => x.classList.toggle('active', x.dataset.view === view));
+  document.getElementById('board').style.display = view === 'kanban' ? 'grid' : 'none';
+  document.getElementById('calwrap').style.display = view === 'calendar' ? 'grid' : 'none';
+  refresh();
+}
+
+document.getElementById('searchBox').addEventListener('input', e => {
+  searchTerm = e.target.value;
+  refresh();
+});
+document.getElementById('attachToggle').addEventListener('click', function() {
+  attachOnly = !attachOnly;
+  this.classList.toggle('active', attachOnly);
+  refresh();
+});
+document.querySelectorAll('.viewSwitch .v').forEach(v => {
+  v.addEventListener('click', () => switchView(v.dataset.view));
+});
+
+/* ---- modal ---- */
+function openModal(i) {
+  const overlay = document.getElementById('overlay');
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <div class="modal-head">
+      <div class="avatar area-${i.area}">${initials(i.senderName)}</div>
+      <div class="htext">
+        <div class="subject">${i.subject}</div>
+      </div>
+      <div class="modal-close" id="modalCloseBtn">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-badges">
+        <span class="area-${i.area}" style="background:var(--c-${i.area});">${areaIcon[i.area]} ${i.area}</span>
+        <span style="background:var(${meta[i.u].cssvar});">${meta[i.u].label}</span>
+        ${i.attach ? '<span style="background:#444;">📎 Adjunto</span>' : ''}
+      </div>
+      <div class="modal-who-when">
+        <div class="line"><span class="ico">👤</span><b>${i.senderName}</b></div>
+        <div class="line"><span class="ico">✉️</span><span class="mono">${i.senderEmail}</span></div>
+        <div class="line"><span class="ico">🗓️</span>${i.date}</div>
+        ${i.futureLabel ? `<div class="line"><span class="ico">📅</span><span style="color:#b85c1a;font-weight:700;">${i.futureLabel}</span></div>` : ''}
+      </div>
+      <div class="modal-section-label">Resumen</div>
+      <div class="modal-desc">${i.summary}</div>
+      <div class="modal-section-label">Contexto adicional</div>
+      <div class="modal-context">${i.context || 'Sin contexto adicional disponible para este correo.'}</div>
+      <div class="modal-section-label">Por qué se clasificó así</div>
+      <div class="modal-reason">${i.reason || '—'}</div>
+      <div class="modal-actions">
+        <a class="btn btn-primary" href="${gmailLink(i.gmailId)}" target="_blank" rel="noopener">Abrir en Gmail ↗</a>
+        <div class="btn btn-resolve" id="modalResolveBtn">✅ Marcar resuelto</div>
+        <div class="btn btn-secondary" id="modalCloseBtn2">Cerrar</div>
+      </div>
+    </div>
+  `;
+  overlay.classList.add('open');
+  document.getElementById('modalCloseBtn').onclick = closeModal;
+  document.getElementById('modalCloseBtn2').onclick = closeModal;
+  document.getElementById('modalResolveBtn').onclick = () => {
+    saveOverride(i.id, 'resuelto');
+    closeModal();
+    renderSummary();
+    refresh();
+  };
+}
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+}
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target.id === 'overlay') closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* ---- pendientes del equipo (con fecha) ---- */
+const TODO_KEY = "inbox-triage-todos-v1";
+const TODAY_ISO = "2026-08-09";
+function loadTodos() {
+  try { return JSON.parse(localStorage.getItem(TODO_KEY) || "[]"); } catch(e) { return []; }
+}
+function saveTodos(list) { localStorage.setItem(TODO_KEY, JSON.stringify(list)); }
+
+function renderTodos() {
+  const todos = loadTodos().slice().sort((a,b) => (a.date || '9999').localeCompare(b.date || '9999'));
+  const pending = todos.filter(t => !t.done).length;
+  document.getElementById('todoCount').textContent = pending;
+  const list = document.getElementById('todoList');
+  if (todos.length === 0) {
+    list.innerHTML = '<div class="todo-empty">Sin pendientes — agrega uno arriba con su fecha límite.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  todos.forEach(t => {
+    const el = document.createElement('div');
+    let cls = 'todo-item';
+    if (t.done) cls += ' done';
+    else if (t.date && t.date < TODAY_ISO) cls += ' overdue';
+    else if (t.date) {
+      const diff = (new Date(t.date) - new Date(TODAY_ISO)) / 86400000;
+      if (diff <= 3) cls += ' soon';
+    }
+    el.className = cls;
+    const dateLabel = t.date ? new Date(t.date + "T00:00:00").toLocaleDateString('es-MX', {day:'numeric', month:'short'}) : 'sin fecha';
+    el.innerHTML = `
+      <input type="checkbox" class="chk" ${t.done ? 'checked' : ''}>
+      <div class="ttext">${t.text}</div>
+      <div class="tdate">${dateLabel}</div>
+      <div class="tdel">✕</div>
+    `;
+    el.querySelector('.chk').addEventListener('change', () => {
+      const all = loadTodos();
+      const item = all.find(x => x.id === t.id);
+      if (item) item.done = !item.done;
+      saveTodos(all);
+      renderTodos();
+    });
+    el.querySelector('.tdel').addEventListener('click', () => {
+      saveTodos(loadTodos().filter(x => x.id !== t.id));
+      renderTodos();
+    });
+    list.appendChild(el);
+  });
+}
+
+document.getElementById('todoAddBtn').addEventListener('click', () => {
+  const textInput = document.getElementById('todoText');
+  const dateInput = document.getElementById('todoDate');
+  const text = textInput.value.trim();
+  if (!text) return;
+  const todos = loadTodos();
+  todos.push({ id: 't' + Date.now(), text, date: dateInput.value || null, done: false });
+  saveTodos(todos);
+  textInput.value = '';
+  dateInput.value = '';
+  renderTodos();
+});
+document.getElementById('todoText').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('todoAddBtn').click();
+});
+
+/* ---- gate de contraseña ---- */
+const SITE_PASSWORD = "Residentes.2026";
+const PW_SESSION_KEY = "inbox-triage-unlocked";
+function tryUnlock() {
+  const val = document.getElementById('pwInput').value;
+  if (val === SITE_PASSWORD) {
+    sessionStorage.setItem(PW_SESSION_KEY, "1");
+    document.getElementById('pwGate').classList.add('hidden');
+  } else {
+    document.getElementById('pwErr').classList.add('show');
+  }
+}
+document.getElementById('pwBtn').addEventListener('click', tryUnlock);
+document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+if (sessionStorage.getItem(PW_SESSION_KEY) === "1") {
+  document.getElementById('pwGate').classList.add('hidden');
+}
+
+document.getElementById('updatedAt').textContent = 'Actualizado 9 ago 2026, 08:00 (CDMX)';
+initColorPanel();
+renderSummary();
+renderUpcoming();
+renderTabs();
+renderBoard();
+renderTodos();
+</script>
+
+</body>
+</html>
