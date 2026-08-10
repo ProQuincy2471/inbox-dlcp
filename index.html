@@ -14,13 +14,13 @@
     color-scheme: light;
     --c-urgente: #d7263d;
     --c-revisar: #f2a900;
-    --c-ruido: #5b6472;
+    --c-ruido: #8a97a8;
     --c-resuelto: #12a578;
-    --c-INCMNSZ: #2360c9;
-    --c-TEC: #b85c1a;
-    --c-Agenda: #6b3fc9;
-    --c-Personal: #1f8a4c;
-    --c-Otros: #55555a;
+    --c-INCMNSZ: #3d8bfd;
+    --c-TEC: #e0821f;
+    --c-Agenda: #9b6df0;
+    --c-Personal: #2fb066;
+    --c-Otros: #8a8a94;
   }
   * { box-sizing: border-box; }
   body {
@@ -655,7 +655,6 @@ function renderBoard() {
           <div class="who-when">
             <div class="line"><span class="ico">👤</span><span class="who-name">${i.senderName}</span></div>
             <div class="line"><span class="ico">✉️</span><span class="who-email mono">${i.senderEmail}</span></div>
-            <div class="line when-row"><span class="ico">🗓️</span><span class="when-pill">${i.date}${i.time ? `<span class="time">${i.time}</span>` : ''}</span></div>
           </div>
           <div class="desc">${i.summary}</div>
         `;
@@ -760,7 +759,6 @@ function renderCalDayList(iso) {
       <div class="who-when">
         <div class="line"><span class="ico">👤</span><span class="who-name">${i.senderName}</span></div>
         <div class="line"><span class="ico">✉️</span><span class="who-email mono">${i.senderEmail}</span></div>
-        <div class="line when-row"><span class="ico">🗓️</span><span class="when-pill">${i.date}${i.time ? `<span class="time">${i.time}</span>` : ''}</span></div>
       </div>
       <div class="desc">${i.summary}</div>
     `;
