@@ -305,8 +305,8 @@
   .modal-badges { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
   .modal-badges span { font-size: 10px; text-transform: uppercase; font-weight: 800; padding: 3px 9px; color: #fff; }
   .modal-section-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: #5b6b85; margin: 14px 0 5px; }
-  .modal-desc { font-size: 12.5px; line-height: 1.55; color: #1c2c46; }
-  .modal-context { font-size: 12px; line-height: 1.55; color: #3d5170; background: #eef2f8; border-left: 3px solid #c7d2e0; padding: 8px 10px; }
+  .modal-desc { font-size: 13.5px; line-height: 1.68; color: #1c2c46; }
+  .modal-context { font-size: 12.5px; line-height: 1.6; color: #3d5170; background: #eef2f8; border-left: 3px solid #c7d2e0; padding: 9px 11px; border-radius: 4px; }
   .modal-reason { font-size: 11.5px; line-height: 1.5; color: #5b6b85; font-style: italic; }
   .modal-actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
   .btn { flex: 1; min-width: 140px; text-align: center; padding: 10px 12px; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer; border: 1px solid #16233b; text-decoration: none; border-radius: 6px; }
@@ -366,6 +366,48 @@
     .calwrap { grid-template-columns: 1fr; }
     .listrow { flex-wrap: wrap; }
   }
+
+  .announceBtn { border: 1px solid #16233b; background: #fff; padding: 6px 11px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; cursor: pointer; border-radius: 6px; position: relative; }
+  .announceBtn .dot { position:absolute; top:-4px; right:-4px; width:9px; height:9px; border-radius:50%; background: var(--c-urgente); display:none; }
+  .announcePanel { display:none; position:absolute; right:40px; margin-top:8px; background:#fff; border:1px solid #16233b; border-radius:10px; padding:14px; z-index:41; width:340px; max-height:420px; overflow-y:auto; box-shadow:0 12px 32px rgba(10,20,32,0.35); }
+  .announcePanel.open { display:block; }
+  .announcePanel h4 { margin:0 0 10px; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#16233b; }
+  .announceForm { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .announceForm textarea { border:1px solid #c7d2e0; border-radius:6px; padding:7px 9px; font-size:12px; font-family:inherit; resize:vertical; min-height:44px; outline:none; }
+  .announceForm .row { display:flex; gap:6px; align-items:center; }
+  .announceForm select { border:1px solid #c7d2e0; border-radius:6px; padding:6px 8px; font-size:11px; flex:1; }
+  .announceForm button { border:1px solid #16233b; background:#16233b; color:#fff; border-radius:6px; padding:6px 12px; font-size:11px; font-weight:800; cursor:pointer; text-transform:uppercase; }
+  .announceForm button:hover { background: var(--c-urgente); border-color: var(--c-urgente); }
+  .announceList { display:flex; flex-direction:column; gap:8px; }
+  .announceItem { border-left:4px solid #4a5a75; background:#eef2f8; border-radius:6px; padding:8px 10px; font-size:12px; position:relative; }
+  .announceItem .cat { display:inline-block; font-size:8.5px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#fff; padding:2px 6px; border-radius:3px; margin-bottom:4px; }
+  .announceItem .txt { color:#16233b; line-height:1.4; }
+  .announceItem .meta { font-size:9.5px; color:#7891ae; margin-top:4px; }
+  .announceItem .del { position:absolute; top:6px; right:8px; cursor:pointer; color:#a9b8cc; font-size:12px; }
+  .announceItem .del:hover { color: var(--c-urgente); }
+  .announceItem.cat-info { border-left-color: #38bdf8; } .announceItem.cat-info .cat { background: #38bdf8; }
+  .announceItem.cat-aviso { border-left-color: var(--c-revisar); } .announceItem.cat-aviso .cat { background: var(--c-revisar); }
+  .announceItem.cat-urgente { border-left-color: var(--c-urgente); } .announceItem.cat-urgente .cat { background: var(--c-urgente); }
+  .announceItem.cat-resuelto { border-left-color: var(--c-resuelto); } .announceItem.cat-resuelto .cat { background: var(--c-resuelto); }
+  .announceEmpty { font-size:11px; color:#7891ae; font-style:italic; }
+  .modal-comments { margin-top:16px; border-top:1px dashed #dbe4ef; padding-top:12px; }
+  .modal-comments h5 { margin:0 0 8px; font-size:9.5px; text-transform:uppercase; letter-spacing:0.06em; color:#7891ae; }
+  .commentList { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .commentItem { background:#eef2f8; border-radius:6px; padding:7px 9px; font-size:12px; border-left:3px solid #4a5a75; }
+  .commentItem.cat-info { border-left-color: #38bdf8; } .commentItem.cat-info .cat { background: #38bdf8; }
+  .commentItem.cat-aviso { border-left-color: var(--c-revisar); } .commentItem.cat-aviso .cat { background: var(--c-revisar); }
+  .commentItem.cat-urgente { border-left-color: var(--c-urgente); } .commentItem.cat-urgente .cat { background: var(--c-urgente); }
+  .commentItem.cat-resuelto { border-left-color: var(--c-resuelto); } .commentItem.cat-resuelto .cat { background: var(--c-resuelto); }
+  .commentItem .cat { display:inline-block; font-size:8px; font-weight:800; text-transform:uppercase; padding:1px 5px; border-radius:3px; color:#fff; margin-right:5px; }
+  .commentItem .txt { color:#16233b; }
+  .commentItem .meta { font-size:9px; color:#7891ae; margin-top:3px; }
+  .commentEmpty { font-size:11px; color:#7891ae; font-style:italic; margin-bottom:8px; }
+  .commentAddRow { display:flex; gap:6px; }
+  .commentAddRow textarea { flex:1; border:1px solid #c7d2e0; border-radius:6px; padding:7px 9px; font-size:12px; font-family:inherit; resize:vertical; min-height:38px; outline:none; }
+  .commentAddCol { display:flex; flex-direction:column; gap:6px; }
+  .commentAddCol select { border:1px solid #c7d2e0; border-radius:6px; padding:6px; font-size:10.5px; }
+  .commentAddCol button { border:1px solid #16233b; background:#16233b; color:#fff; border-radius:6px; padding:6px 10px; font-size:10.5px; font-weight:800; cursor:pointer; }
+  .commentAddCol button:hover { background: var(--c-urgente); border-color: var(--c-urgente); }
 </style>
 </head>
 <body>
@@ -430,6 +472,7 @@
       <input class="search" id="searchBox" type="text" placeholder="Buscar remitente o palabra clave…">
       <div class="toggle" id="attachToggle">📎 Solo con adjunto</div>
       <div class="colorbtn" id="colorBtn">🎨 Colores</div>
+      <div class="announceBtn" id="announceBtn">💬 Avisos<span class="dot" id="announceDot"></span></div>
     </div>
   </div>
   <div class="colorpanel" id="colorPanel">
@@ -444,6 +487,22 @@
     <div class="colorrow"><label>👤 Personal</label><input type="color" data-var="--c-Personal" value="#fb923c"></div>
     <div class="colorrow"><label>📦 Otros</label><input type="color" data-var="--c-Otros" value="#78350f"></div>
     <div class="resetbtn" id="resetColors">Restablecer colores</div>
+  </div>
+  <div class="announcePanel" id="announcePanel">
+    <h4>📣 Avisos del equipo</h4>
+    <div class="announceForm">
+      <textarea id="announceText" placeholder="Escribe un aviso para el equipo…"></textarea>
+      <div class="row">
+        <select id="announceCat">
+          <option value="info">ℹ️ Info</option>
+          <option value="aviso">📌 Aviso</option>
+          <option value="urgente">🔴 Urgente</option>
+          <option value="resuelto">✅ Resuelto</option>
+        </select>
+        <button id="announceAddBtn">Publicar</button>
+      </div>
+    </div>
+    <div class="announceList" id="announceList"></div>
   </div>
 </div>
 
@@ -692,6 +751,132 @@ function setChecked(id, val) {
   const c = loadChecked();
   if (val) c[id] = true; else delete c[id];
   localStorage.setItem(CHECKED_KEY, JSON.stringify(c));
+}
+
+const ANNOUNCE_KEY = "inbox-triage-announcements-v1";
+const COMMENTS_KEY = "inbox-triage-comments-v1";
+const catLabel = {info: "ℹ️ Info", aviso: "📌 Aviso", urgente: "🔴 Urgente", resuelto: "✅ Resuelto"};
+
+function fmtTs(ts) {
+  try {
+    return new Date(ts).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Mexico_City' });
+  } catch(e) { return ''; }
+}
+
+function loadAnnouncements() {
+  try { return JSON.parse(localStorage.getItem(ANNOUNCE_KEY) || "[]"); } catch(e) { return []; }
+}
+function saveAnnouncementsList(list) {
+  localStorage.setItem(ANNOUNCE_KEY, JSON.stringify(list));
+}
+function addAnnouncement(text, cat) {
+  const list = loadAnnouncements();
+  list.unshift({id: 'a' + Date.now(), text, cat, ts: Date.now()});
+  saveAnnouncementsList(list);
+}
+function deleteAnnouncement(id) {
+  saveAnnouncementsList(loadAnnouncements().filter(a => a.id !== id));
+}
+function renderAnnouncements() {
+  const list = loadAnnouncements();
+  const el = document.getElementById('announceList');
+  if (!el) return;
+  if (!list.length) { el.innerHTML = '<div class="announceEmpty">Sin avisos todavía — sé el primero en publicar uno.</div>'; return; }
+  el.innerHTML = list.map(a => `
+    <div class="announceItem cat-${a.cat}">
+      <span class="del" data-id="${a.id}">✕</span>
+      <span class="cat">${catLabel[a.cat] || a.cat}</span>
+      <div class="txt">${a.text}</div>
+      <div class="meta">${fmtTs(a.ts)}</div>
+    </div>
+  `).join('');
+  el.querySelectorAll('.del').forEach(d => d.addEventListener('click', () => {
+    deleteAnnouncement(d.dataset.id);
+    renderAnnouncements();
+  }));
+}
+function initAnnouncePanel() {
+  const btn = document.getElementById('announceBtn');
+  const panel = document.getElementById('announcePanel');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+    const cp = document.getElementById('colorPanel');
+    if (cp) cp.classList.remove('open');
+  });
+  panel.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', () => panel.classList.remove('open'));
+  const colorBtn = document.getElementById('colorBtn');
+  if (colorBtn) colorBtn.addEventListener('click', () => panel.classList.remove('open'));
+  document.getElementById('announceAddBtn').addEventListener('click', () => {
+    const txt = document.getElementById('announceText').value.trim();
+    if (!txt) return;
+    const cat = document.getElementById('announceCat').value;
+    addAnnouncement(txt, cat);
+    document.getElementById('announceText').value = '';
+    renderAnnouncements();
+  });
+}
+
+function loadComments() {
+  try { return JSON.parse(localStorage.getItem(COMMENTS_KEY) || "{}"); } catch(e) { return {}; }
+}
+function saveCommentsMap(obj) {
+  localStorage.setItem(COMMENTS_KEY, JSON.stringify(obj));
+}
+function addComment(key, text, cat) {
+  const all = loadComments();
+  if (!all[key]) all[key] = [];
+  all[key].push({text, cat, ts: Date.now()});
+  saveCommentsMap(all);
+}
+function deleteComment(key, idx) {
+  const all = loadComments();
+  if (all[key]) { all[key].splice(idx, 1); saveCommentsMap(all); }
+}
+function commentsFor(key) {
+  return loadComments()[key] || [];
+}
+function renderModalComments(key) {
+  const list = commentsFor(key);
+  const el = document.getElementById('modalComments');
+  if (!el) return;
+  el.innerHTML = `
+    <h5>💬 Comentarios del equipo (${list.length})</h5>
+    <div class="commentList">
+      ${list.length ? list.map((c, idx) => `
+        <div class="commentItem cat-${c.cat}">
+          <span class="cat">${catLabel[c.cat] || c.cat}</span><span class="txt">${c.text}</span>
+          <div class="meta">${fmtTs(c.ts)} · <span class="delc" data-idx="${idx}" style="cursor:pointer;">eliminar</span></div>
+        </div>
+      `).join('') : '<div class="commentEmpty">Sin comentarios — deja saber al equipo qué pasó con este correo.</div>'}
+    </div>
+    <div class="commentAddRow">
+      <textarea id="commentText" placeholder="Ej: Ya hablé con Karina, quedamos en..."></textarea>
+      <div class="commentAddCol">
+        <select id="commentCat">
+          <option value="info">ℹ️ Info</option>
+          <option value="aviso">📌 Aviso</option>
+          <option value="urgente">🔴 Urgente</option>
+          <option value="resuelto">✅ Resuelto</option>
+        </select>
+        <button id="commentAddBtn">Comentar</button>
+      </div>
+    </div>
+  `;
+  el.querySelectorAll('.delc').forEach(d => d.addEventListener('click', () => {
+    deleteComment(key, parseInt(d.dataset.idx, 10));
+    renderModalComments(key);
+  }));
+  document.getElementById('commentAddBtn').addEventListener('click', () => {
+    const txt = document.getElementById('commentText').value.trim();
+    if (!txt) return;
+    const cat = document.getElementById('commentCat').value;
+    addComment(key, txt, cat);
+    document.getElementById('commentText').value = '';
+    renderModalComments(key);
+  });
 }
 
 function getItems() {
@@ -1132,6 +1317,7 @@ function openModal(i) {
       <div class="modal-context">${i.context || 'Sin contexto adicional disponible para este correo.'}</div>
       <div class="modal-section-label">Por qué se clasificó así</div>
       <div class="modal-reason">${i.reason || '—'}</div>
+      <div class="modal-comments" id="modalComments"></div>
       <div class="modal-actions">
         <a class="btn btn-primary" href="${gmailLink(i.gmailId)}" target="_blank" rel="noopener">Abrir en Gmail ↗</a>
         <div class="btn btn-resolve" id="modalResolveBtn">✅ Marcar resuelto</div>
@@ -1149,6 +1335,7 @@ function openModal(i) {
     renderSummary();
     refresh();
   };
+  renderModalComments(i._key);
 }
 function closeModal() {
   document.getElementById('overlay').classList.remove('open');
@@ -1244,6 +1431,8 @@ if (sessionStorage.getItem(PW_SESSION_KEY) === "1") {
 
 document.getElementById('updatedAt').textContent = 'Actualizado 18 de agosto de 2026, 7:00 a.m.';
 initColorPanel();
+initAnnouncePanel();
+renderAnnouncements();
 renderSummary();
 renderUpcoming();
 renderTabs();
